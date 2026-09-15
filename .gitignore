@@ -3,6 +3,7 @@ dist/
 out/
 .vite/
 coverage/
+artifacts/
 *.log
 .env
 .env.*
