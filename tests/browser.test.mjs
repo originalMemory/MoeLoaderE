@@ -1,0 +1,143 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
+import { _electron as electron } from 'playwright'
+
+test('单站点搜索、选择、分页、预览与 IPC 验收', { timeout: 40_000 }, async (t) => {
+  const profile = await mkdtemp(join(tmpdir(), 'moeloader-browser-'))
+  const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE; delete env.ELECTRON_RENDERER_URL
+  let app
+  t.after(async () => { if (app) await app.close(); assert.equal(dirname(resolve(profile)), resolve(tmpdir())); await rm(profile, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }) })
+  app = await electron.launch({ args: ['.', `--user-data-dir=${profile}`], env })
+  await app.evaluate(({ session, nativeImage, clipboard }) => {
+    globalThis.queries = []
+    clipboard.writeText = text => { globalThis.copiedText = text }
+    const pixels = Buffer.alloc(640 * 360 * 4, 180)
+    for (let i = 3; i < pixels.length; i += 4) pixels[i] = 255
+    const png = nativeImage.createFromBitmap(pixels, { width: 640, height: 360 }).toPNG()
+    session.defaultSession.protocol.handle('https', async request => {
+      const url = new URL(request.url); globalThis.queries.push(request.url)
+      if (url.pathname === '/tag.json') return new Response(JSON.stringify([{ name: 'landscape', count: 15 }]))
+      if (url.pathname === '/post.json') {
+        if (url.searchParams.get('tags').startsWith('slow')) await new Promise(resolve => setTimeout(resolve, 250))
+        const page = Number(url.searchParams.get('page'))
+        const duplicates = url.searchParams.get('tags').startsWith('duplicates ')
+        const records = page > 1 ? [] : Array.from({ length: 10 }, (_, i) => ({ id: duplicates && i === 1 ? 1000 : 1000 + i, width: 1280, height: 720, score: 42, rating: 's', author: duplicates ? `entry-${i}` : 'sample', tags: 'landscape sky', created_at: 1704067200, preview_url: `https://konachan.net/entry-${i}.png`, sample_url: `https://konachan.net/entry-${i}-preview.png`, file_url: `https://konachan.net/entry-${i}-original.jpg` }))
+        return new Response(JSON.stringify(records))
+      }
+      return new Response(png, { headers: { 'content-type': 'image/png' } })
+    })
+  })
+  const page = await app.firstWindow(); await page.waitForLoadState('load')
+  const errors = []; page.on('pageerror', e => errors.push(e.message))
+  await page.screenshot({ path: 'artifacts/browser-initial.png', animations: 'disabled' })
+  await page.locator('#keyword').fill('landscape')
+  await page.locator('#search-popup').waitFor({ state: 'visible' })
+  await page.locator('#count').fill('10')
+  assert.equal(await page.locator('#count').inputValue(), '10')
+  await page.screenshot({ path: 'artifacts/browser-parameters.png', animations: 'disabled' })
+  await page.locator('#search').click()
+  await page.locator('.picture.loaded').nth(9).waitFor()
+  const requestedPages = await app.evaluate(() => globalThis.queries.filter(url => new URL(url).pathname === '/post.json'))
+  assert.equal(new URL(requestedPages[0]).searchParams.get('limit'), '10', JSON.stringify(requestedPages))
+  assert.equal(requestedPages.length, 1, JSON.stringify(requestedPages))
+  await page.locator('#search-form').evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished)))
+  await page.mouse.move(1000, 750)
+  await page.screenshot({ path: 'artifacts/browser-normal.png', animations: 'disabled' })
+  assert.equal(await page.locator('.picture').count(), 10)
+  await page.locator('.picture input').nth(1).click()
+  await page.locator('.picture input').nth(4).click({ modifiers: ['Shift'] })
+  assert.equal(await page.locator('.picture.selected').count(), 4)
+  assert.match(await page.locator('#selection-count').textContent(), /4张/)
+  await page.screenshot({ path: 'artifacts/browser-results.png', animations: 'disabled' })
+  await page.locator('.picture').nth(2).click({ button: 'right' })
+  await page.locator('#context-menu .tag-list').getByRole('button', { name: 'landscape', exact: true }).click()
+  assert.equal(await app.evaluate(() => globalThis.copiedText), 'landscape')
+  assert.equal(await page.locator('#keyword').inputValue(), 'landscape')
+  await page.screenshot({ path: 'artifacts/browser-menu.png', animations: 'disabled' })
+  await page.keyboard.press('Escape')
+  await page.locator('#gallery').focus(); await page.keyboard.press('Control+a')
+  assert.equal(await page.locator('.picture.selected').count(), 10)
+  const firstCard = await page.locator('.picture').first().boundingBox()
+  await page.keyboard.down('Shift')
+  await page.mouse.move(firstCard.x + 30, firstCard.y + 30); await page.mouse.down()
+  await page.mouse.move(firstCard.x + firstCard.width / 2 + 10, firstCard.y + firstCard.height / 2 + 10)
+  await page.mouse.up(); await page.keyboard.up('Shift')
+  assert.equal(await page.locator('.picture.selected').count(), 9)
+  const previewEvent = app.waitForEvent('window')
+  await page.locator('.picture').first().hover()
+  await page.locator('.picture').first().getByTitle('预览图').click()
+  const preview = await previewEvent
+  await preview.locator('#large-image').waitFor({ state: 'visible' })
+  await preview.waitForFunction(() => document.querySelector('#large-image').naturalWidth > 0)
+  assert.match(await preview.locator('#metadata').textContent(), /sample/)
+  const beforeZoom = await preview.locator('#large-image').boundingBox()
+  assert.equal(beforeZoom.width, 640)
+  assert.equal(beforeZoom.height, 360)
+  await preview.screenshot({ path: 'artifacts/browser-preview-default.png', animations: 'disabled' })
+  await preview.locator('#large-image').hover()
+  await preview.mouse.wheel(0, -120)
+  await preview.waitForFunction(width => document.querySelector('#large-image').getBoundingClientRect().width > width, beforeZoom.width)
+  const afterZoom = await preview.locator('#large-image').boundingBox()
+  await preview.mouse.move(afterZoom.x + 50, afterZoom.y + 50); await preview.mouse.down()
+  await preview.mouse.move(afterZoom.x + 550, afterZoom.y + 400); await preview.mouse.up()
+  assert.equal(await preview.evaluate(() => {
+    const img = document.querySelector('#large-image'), canvas = document.querySelector('#preview-canvas')
+    return parseFloat(img.style.left) >= 0 && parseFloat(img.style.left) + img.getBoundingClientRect().width <= canvas.clientWidth + 1
+  }), true)
+  await preview.screenshot({ path: 'artifacts/browser-preview.png', animations: 'disabled' })
+  const closed = preview.waitForEvent('close')
+  await preview.keyboard.press('Escape').catch(error => { if (!preview.isClosed()) throw error })
+  await closed
+  await page.locator('#next').click()
+  await page.waitForFunction(() => document.querySelector('#next').disabled && document.querySelectorAll('.picture').length === 0)
+  await page.locator('#pages button').first().click()
+  assert.equal(await page.locator('.picture').count(), 10)
+  const invalid = await page.evaluate(async () => {
+    try { await window.moe.search({ keyword: '', count: 501, page: 1, minWidth: 1024, minHeight: 768, orientation: 0, filterResolution: false }); return false } catch { return true }
+  })
+  assert.equal(invalid, true)
+  const race = await page.evaluate(async () => {
+    const input = { keyword: 'slow', count: 10, page: 1, minWidth: 1024, minHeight: 768, orientation: 0, filterResolution: false }
+    const first = window.moe.search(input).then(() => 'unexpected', () => 'cancelled')
+    await new Promise(resolve => setTimeout(resolve, 30))
+    await window.moe.cancel()
+    const next = await window.moe.search({ ...input, keyword: 'landscape' })
+    return { first: await first, count: next.items.length }
+  })
+  assert.deepEqual(race, { first: 'cancelled', count: 10 })
+  assert.equal(await app.evaluate(async ({ net }) => (await net.fetch('moe-image://picture/999999-1-0/preview')).status), 404)
+  const untrustedEvent = app.waitForEvent('window')
+  await app.evaluate(async ({ BrowserWindow }) => {
+    const parent = BrowserWindow.getAllWindows()[0]
+    const child = new BrowserWindow({ show: false, webPreferences: { preload: parent.webContents.getLastWebPreferences().preload, sandbox: true, contextIsolation: true, nodeIntegration: false } })
+    await child.loadURL(parent.webContents.getURL())
+  })
+  const untrusted = await untrustedEvent
+  assert.equal(await untrusted.evaluate(async () => { try { await window.moe.init(); return false } catch { return true } }), true)
+  await untrusted.close()
+  await page.locator('#keyword').fill('duplicates')
+  await page.locator('#search').click()
+  const duplicateCards = page.locator('.picture[data-id="1000"]')
+  await duplicateCards.nth(1).waitFor()
+  assert.notEqual(await duplicateCards.first().locator('img').getAttribute('src'), null)
+  await page.locator('.picture.loaded').nth(9).waitFor()
+  await duplicateCards.first().locator('input').click()
+  assert.equal(await duplicateCards.first().locator('input').isChecked(), true)
+  assert.equal(await duplicateCards.nth(1).locator('input').isChecked(), false)
+  await duplicateCards.nth(1).locator('input').click({ modifiers: ['Shift'] })
+  assert.match(await page.locator('#selection-count').textContent(), /2张/)
+  await page.locator('#export-selected').click()
+  assert.equal(await page.locator('#collected').inputValue(), 'https://konachan.net/entry-0-original.jpg\nhttps://konachan.net/entry-1-original.jpg\n')
+  const duplicatePreviewEvent = app.waitForEvent('window')
+  await duplicateCards.first().hover(); await duplicateCards.first().getByTitle('预览图').click()
+  const duplicatePreview = await duplicatePreviewEvent
+  await duplicatePreview.waitForFunction(() => document.querySelector('#large-image').naturalWidth > 0)
+  assert.match(await duplicatePreview.locator('#metadata').textContent(), /entry-0/)
+  await duplicatePreview.close()
+  assert.deepEqual(errors, [])
+  const queries = await app.evaluate(() => globalThis.queries)
+  assert.ok(queries.some(q => new URL(q).searchParams.get('tags') === 'landscape rating:safe'))
+})

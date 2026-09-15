@@ -1,0 +1,11 @@
+{
+  "source": "MoeLoaderP f37c511 + working tree, MainWindow at 1060x760, 96 DPI",
+  "client": { "width": 1058, "height": 728 },
+  "header": { "x": 0, "y": 0, "width": 1058, "height": 72 },
+  "workspace": { "x": 0, "y": 72, "width": 1058, "height": 631 },
+  "footer": { "x": 0, "y": 703, "width": 1058, "height": 25 },
+  "search-form": { "x": 327, "y": 370.5, "width": 404, "height": 34 },
+  "logo": { "width": 356, "height": 72 },
+  "font": "Microsoft YaHei UI",
+  "noiseOpacity": "0.03"
+}

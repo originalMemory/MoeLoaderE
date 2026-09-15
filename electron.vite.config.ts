@@ -2,6 +2,7 @@ import { defineConfig } from 'electron-vite'
 
 export default defineConfig(({ command }) => ({
   main: {},
+  preload: {},
   renderer: {
     plugins: [{
       name: 'renderer-csp',

@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "build": "npm run typecheck && electron-vite build --ignoreConfigWarning",
     "start": "electron-vite preview --skipBuild --ignoreConfigWarning",
-    "test": "npm run build && node --test tests/bootstrap.test.mjs"
+    "test": "npm run build && node --experimental-strip-types --test --test-concurrency=1 tests/*.test.mjs",
+    "test:online": "npm run build && node tests/online.mjs"
   },
   "devDependencies": {
     "@types/node": "22.20.2",
@@ -21,5 +22,8 @@
     "playwright": "1.63.0",
     "typescript": "7.0.2",
     "vite": "7.3.6"
+  },
+  "dependencies": {
+    "koffi": "3.3.0"
   }
 }

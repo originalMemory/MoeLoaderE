@@ -9,6 +9,7 @@ import electronPath from 'electron'
 
 test('本地构建：页面、隔离、导航限制与窗口生命周期', { timeout: 30_000 }, async (t) => {
   const profile = await mkdtemp(join(tmpdir(), 'moeloader-e-test-'))
+  await writeFile(join(profile, 'browser.json'), JSON.stringify({ viewed: '0,1001;-1,59' }))
   const env = { ...process.env }
   delete env.ELECTRON_RUN_AS_NODE
   delete env.ELECTRON_RENDERER_URL
@@ -25,8 +26,9 @@ test('本地构建：页面、隔离、导航限制与窗口生命周期', { tim
   const page = await app.firstWindow()
   await page.waitForLoadState('load')
   assert.equal(await page.title(), 'MoeLoaderE')
-  assert.equal(await page.locator('#mode').textContent(), '本地构建')
-  assert.equal(await page.locator('h2').textContent(), '应用基础已就绪')
+  assert.equal(await page.locator('#site').inputValue(), 'konachan-g')
+  assert.equal(await page.locator('#search').innerText(), '获取')
+  assert.equal(await page.locator('#pictures').locator('article').count(), 0)
   assert.ok(page.url().startsWith('file:'))
   assert.deepEqual(await page.evaluate(() => [typeof window.require, typeof window.process]), ['undefined', 'undefined'])
 

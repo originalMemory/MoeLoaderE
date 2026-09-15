@@ -3,21 +3,59 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src __CONNECT_SRC__; img-src 'self'; base-uri 'none'; form-action 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src __CONNECT_SRC__; img-src 'self' moe-image:; base-uri 'none'; form-action 'none'" />
     <title>MoeLoaderE</title>
     <link rel="stylesheet" href="/src/style.css" />
     <script type="module" src="/src/main.ts"></script>
   </head>
   <body>
-    <main>
-      <p class="eyebrow">MOELOADER E</p>
-      <h1>图片收藏，从这里开始。</h1>
-      <p class="description">搜索、浏览与下载，汇聚在一个桌面应用中。</p>
-      <section aria-labelledby="status-title">
-        <h2 id="status-title">应用基础已就绪</h2>
-        <p>当前为初始版本，图片浏览功能将在后续阶段加入。</p>
-        <span id="mode" role="status"></span>
-      </section>
-    </main>
+    <div id="window-titlebar"><span id="window-title">MoeLoaderE</span></div>
+    <div id="browser">
+      <header>
+        <button id="logo" title="MoeLoader"><img src="/assets/banner.png" alt="MoeLoader +1s" /></button>
+        <nav><button data-pending="软件设置"><i></i>软件设置</button><span>|</span><button id="download-toggle"><i></i>下载管理</button><span>|</span><button data-pending="关于/捐助"><i></i>关于/捐助</button></nav>
+      </header>
+      <main id="workspace">
+        <form id="search-form">
+          <select id="site" aria-label="站点"><option value="konachan-g">Konachan-G</option></select>
+          <div id="keyword-area"><input id="keyword" placeholder="请输入关键字或留空" aria-label="关键词" autocomplete="off" maxlength="1000" /><i id="hint-spinner" hidden aria-label="正在获取关键词提示"></i><button type="button" id="parameters-toggle" title="搜索参数" aria-label="搜索参数"><i></i></button>
+            <div id="search-popup" hidden>
+              <div class="parameter-fields">
+              <div class="parameter-row"><label for="proxy">单站点代理</label><select id="proxy"><option>全局设置（默认）</option><option>不使用代理</option><option>自定义代理</option><option>系统代理</option></select></div>
+              <div class="parameter-row"><label>镜像站点</label><select aria-label="镜像站点"><option>（不使用镜像）</option></select></div>
+              <div class="parameter-row"><label>搜索结果排序</label><select aria-label="搜索结果排序"><option>（默认）</option></select></div>
+              <div class="parameter-row"><label for="start-page">起始搜索页码</label><input id="start-page" type="number" min="1" max="99999" value="1" required /></div>
+              <div class="parameter-row"><label for="count">每页最少数量</label><input id="count" type="number" min="10" max="500" value="60" required /></div>
+              <label class="resolution-label"><input id="filter-resolution" type="checkbox" />过滤掉此分辨率以下图片（宽/高）</label>
+              <div class="resolution-inputs"><input id="min-width" type="number" min="1" max="10000" value="1024" aria-label="最小宽度" disabled /><input id="min-height" type="number" min="1" max="10000" value="768" aria-label="最小高度" disabled /></div>
+              <div class="parameter-row"><label for="orientation">图片方向</label><select id="orientation"><option value="0">任意</option><option value="1">横向</option><option value="2">纵向</option></select></div>
+              </div>
+              <div id="hints" role="listbox" aria-label="关键词提示"></div>
+              <div id="hint-status" role="status"></div>
+            </div>
+          </div>
+          <button id="search" type="submit"><i></i><span>获取</span></button>
+        </form>
+        <section id="gallery" aria-label="图片列表" tabindex="0"><div id="pictures"></div><div id="selection-box" hidden></div></section>
+        <div id="no-results" hidden>无结果</div>
+        <div id="browse-controls" hidden>
+          <div id="selection-actions" hidden><span id="selection-count"></span><button data-pending="下载所选">下载所选</button><button id="export-selected">导出地址</button></div>
+          <div id="paging"><div id="pages"></div><button id="next" title="下一页"><i></i></button></div>
+          <div id="download-type"><label for="quality">下载图片类型</label><select id="quality"><option>原图</option><option>预览图</option><option>自动</option></select></div>
+        </div>
+        <aside id="downloads" hidden><h3>下载管理</h3><p>下载队列尚未迁移，将在下一阶段实现。</p></aside>
+        <div id="search-message" role="status"></div>
+      </main>
+      <footer><button id="log-toggle">LOG</button><strong id="status">输入关键词标签进行图片搜索、无关键词将直接搜索最新图片</strong><span id="site-status">当前站点：无</span><input id="size" type="range" min="72" max="512" value="192" aria-label="图片尺寸" /><button id="collect-toggle">收集箱</button></footer>
+      <div id="collect" class="floating" hidden><textarea id="collected" aria-label="收集箱"></textarea><button id="copy-collected">复制所有</button><button id="clear-collected">清除所有</button></div>
+      <div id="log" class="floating" hidden><h3>日志</h3><pre id="log-text"></pre></div>
+      <div id="context-menu" class="floating" role="menu" hidden></div>
+    </div>
+    <div id="preview" hidden>
+      <div id="preview-info"><img src="/assets/m-icon.ico" alt="" /><div><h2 id="preview-title"></h2><p id="metadata"></p></div></div>
+      <div id="preview-canvas"><img id="large-image" alt="预览图" draggable="false" /><progress id="preview-loading" aria-label="图片加载进度"></progress><button id="preview-retry" hidden>重新加载</button></div>
+      <div id="preview-tags"><span>Tags：</span><div id="tags"></div></div>
+    </div>
+    <div id="toast" role="status" hidden></div>
   </body>
 </html>
