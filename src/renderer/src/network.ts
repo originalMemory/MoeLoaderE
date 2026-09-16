@@ -9,7 +9,7 @@ export function installNetworkUi(report: (text: string) => void, counts: Record<
   const kind = document.querySelector<HTMLSelectElement>('#pixiv-kind')!, date = document.querySelector<HTMLInputElement>('#pixiv-date')!
   const count = document.querySelector<HTMLInputElement>('#count')!
   count.addEventListener('change', () => { if (count.checkValidity()) counts[site.value as SiteId] = Number(count.value) })
-  let snapshot: NetworkSnapshot = {settings:networkDefaults(),loggedIn:{'konachan-g':false,pixiv:false}}
+  let snapshot: NetworkSnapshot = {settings:networkDefaults(),loggedIn:{'konachan-g':false,pixiv:false,safebooru:false}}
   const refresh = (select: HTMLSelectElement): void => { select.dispatchEvent(new Event('moe:refresh')) }
   const apply = (value: NetworkSnapshot): void => {
     snapshot=value;globalProxy.value=value.settings.globalMode;if(document.activeElement!==address)address.value=value.settings.proxyAddress;proxy.value=value.settings.siteModes[site.value as SiteId]
@@ -48,5 +48,5 @@ export function installNetworkUi(report: (text: string) => void, counts: Record<
   account.oncontextmenu=event=>{event.preventDefault();void window.moe.logout(site.value as SiteId).then(()=>{report('已清除登录信息！');return window.moe.network()}).then(apply).catch(error=>report(String(error)))}
   const unsubscribe=window.moe.onNetwork(apply);window.addEventListener('unload',unsubscribe,{once:true})
   void window.moe.network().then(apply).catch(error=>report(String(error)))
-  return ()=>site.value==='pixiv'?{site:'pixiv',pixivMode:mode.value as SearchInput['pixivMode'],pixivKind:(mode.value==='rank'?kind.value:subcategory.value) as SearchInput['pixivKind'],pixivPeriod:(mode.value==='rank'?subcategory.value:'daily') as SearchInput['pixivPeriod'],pixivDate:date.value}:{site:'konachan-g'}
+  return ()=>site.value==='pixiv'?{site:'pixiv',pixivMode:mode.value as SearchInput['pixivMode'],pixivKind:(mode.value==='rank'?kind.value:subcategory.value) as SearchInput['pixivKind'],pixivPeriod:(mode.value==='rank'?subcategory.value:'daily') as SearchInput['pixivPeriod'],pixivDate:date.value}:{site:site.value as SiteId}
 }

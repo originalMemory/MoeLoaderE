@@ -277,3 +277,5 @@ body[data-site=pixiv] [data-select=site] .select-toggle { background-image:url('
 .picture[data-site=pixiv] .image-id { display:flex; align-items:center; justify-content:center; padding:0 3px; overflow:hidden; line-height:14px; }
 .picture.detail-failed .operations button:first-child { display:block; }
 .operations button:disabled { opacity:.5; }
+
+body[data-site=safebooru] [data-select=site] .select-toggle { background-image:url('/assets/safebooru.ico'),linear-gradient(#f1f1f1,#fff); }

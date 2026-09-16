@@ -1,10 +1,11 @@
 import type { NetworkSettings, SiteId, ProxyMode } from './types'
 
 export const sites = {
+  safebooru: { name: 'Safebooru', home: 'https://safebooru.org', login: '', hosts: ['safebooru.org', 'www.safebooru.org'] },
   'konachan-g': { name: 'Konachan-G', home: 'https://konachan.net', login: '', hosts: ['konachan.net', 'www.konachan.net', 'konachan.com', 'www.konachan.com'] },
   pixiv: { name: 'Pixiv', home: 'https://www.pixiv.net', login: 'https://accounts.pixiv.net/login', hosts: ['www.pixiv.net', 'accounts.pixiv.net', 'i.pximg.net', 's.pximg.net'] }
 } as const
-export function validSite(value: unknown): value is SiteId { return value === 'konachan-g' || value === 'pixiv' }
+export function validSite(value: unknown): value is SiteId { return value === 'konachan-g' || value === 'pixiv' || value === 'safebooru' }
 export function allowedSiteUrl(value: string, site: SiteId): boolean {
   try {
     const u = new URL(value)
@@ -26,14 +27,16 @@ export function proxyServer(address: string): string {
   return `${u.protocol}//${u.hostname}:${port}`
 }
 export function networkDefaults(): NetworkSettings {
-  return { globalMode: 'none', proxyAddress: '127.0.0.1:1080', siteModes: { 'konachan-g': 'default', pixiv: 'default' } }
+  return { globalMode: 'none', proxyAddress: '127.0.0.1:1080', siteModes: { 'konachan-g': 'default', pixiv: 'default', safebooru: 'default' } }
 }
 export function validateNetwork(value: unknown): NetworkSettings {
   if (!value || typeof value !== 'object') throw new Error('代理设置无效')
   const v = value as NetworkSettings, modes = ['none', 'custom', 'system']
   if (!modes.includes(v.globalMode) || !v.siteModes || !['default', ...modes].includes(v.siteModes['konachan-g']) || !['default', ...modes].includes(v.siteModes.pixiv)) throw new Error('代理模式无效')
+  const safebooru = v.siteModes.safebooru === undefined ? 'default' : v.siteModes.safebooru
+  if (!['default', ...modes].includes(safebooru)) throw new Error('代理模式无效')
   proxyServer(v.proxyAddress)
-  return { globalMode: v.globalMode, proxyAddress: v.proxyAddress.trim(), siteModes: { 'konachan-g': v.siteModes['konachan-g'], pixiv: v.siteModes.pixiv } }
+  return { globalMode: v.globalMode, proxyAddress: v.proxyAddress.trim(), siteModes: { 'konachan-g': v.siteModes['konachan-g'], pixiv: v.siteModes.pixiv, safebooru } }
 }
 export function proxyConfig(settings: NetworkSettings, site: SiteId): { mode: 'direct' | 'system' | 'fixed_servers'; proxyRules?: string; proxyBypassRules?: string } {
   const mode: ProxyMode = settings.siteModes[site] === 'default' ? settings.globalMode : settings.siteModes[site]

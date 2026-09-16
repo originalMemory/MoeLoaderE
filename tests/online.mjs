@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { _electron as electron } from 'playwright'
 
+const site = process.env.MOE_ONLINE_SITE || 'konachan-g'
+if (!['konachan-g', 'safebooru'].includes(site)) throw new Error('MOE_ONLINE_SITE 仅支持 konachan-g 或 safebooru')
 // Opt-in: real network check. Default tests use local responses.
 const profile = await mkdtemp(join(tmpdir(), 'moeloader-online-'))
 await writeFile(join(profile, 'downloads.json'), JSON.stringify({ directory: join(profile, 'images'), concurrency: 3, fileTemplate: '%site %id %title', folderTemplate: '%site', autoRename: false, tagCount: 0, firstOnly: false, firstCount: 1 }))
@@ -14,8 +16,9 @@ const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE; delete env.ELEC
 let app
 try {
   app = await electron.launch({ args: ['.', `--user-data-dir=${profile}`], env })
-  await app.evaluate(({ session }) => { globalThis.onlineRequests = []; session.fromPartition('persist:moe-site-konachan-g').webRequest.onBeforeRequest((details, callback) => { if (details.url.startsWith('https://konachan.net/post.json')) globalThis.onlineRequests.push(details.url); callback({}) }) })
+  await app.evaluate(({ session }, site) => { globalThis.onlineRequests = []; session.fromPartition(`persist:moe-site-${site}`).webRequest.onBeforeRequest((details, callback) => { globalThis.onlineRequests.push(details.url); callback({}) }) }, site)
   const page = await app.firstWindow(); await page.waitForLoadState('load')
+  if (site === 'safebooru') { await page.getByRole('combobox',{name:'站点',exact:true}).click(); await page.getByRole('option',{name:'Safebooru',exact:true}).click() }
   await page.locator('#keyword').fill('landscape'); await page.locator('#count').fill('10'); await page.locator('#count').press('Tab'); await page.locator('#search').click()
   await page.waitForFunction(() => document.querySelector('#search span').textContent === '获取', {}, { timeout: 45000 })
   assert.equal(await page.locator('.picture').count(), 10, await page.locator('#status').textContent())
@@ -36,8 +39,8 @@ try {
   const bytes = await readFile(task.path)
   assert.ok(bytes.subarray(0, 2).equals(Buffer.from([0xff, 0xd8])) || bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])) || bytes.subarray(0,3).toString() === 'GIF' || bytes.subarray(8,12).toString() === 'WEBP', '下载文件必须为真实图片')
   await page.screenshot({ path: 'artifacts/download-online.png', animations: 'disabled' })
-  const result = { proxyMode, downloadedBytes: savedFile.size, download: true, site: 'Konachan-G', keyword: 'landscape', items: 10, loaded: 10, preview: true, time: new Date().toISOString() }
-  await writeFile('artifacts/online-result.json', JSON.stringify(result, null, 2)); console.log(result)
+  const result = { proxyMode, downloadedBytes: savedFile.size, download: true, site, keyword: 'landscape', items: 10, loaded: 10, preview: true, time: new Date().toISOString() }
+  await writeFile(`artifacts/${site}-online-result.json`, JSON.stringify(result, null, 2)); console.log(result)
 } catch (error) {
   if (app) console.error('在线搜索请求：', await app.evaluate(() => globalThis.onlineRequests).catch(() => []))
   throw error

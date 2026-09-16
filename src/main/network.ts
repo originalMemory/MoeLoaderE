@@ -33,7 +33,7 @@ export class SiteNetwork {
     this.settings = saved ? validateNetwork(saved.settings) : networkDefaults()
     this.verified = saved?.pixivVerified === true
     this.changed = changed
-    this.sessions = { 'konachan-g': session.fromPartition(sitePartition('konachan-g')), pixiv: session.fromPartition(sitePartition('pixiv')) }
+    this.sessions = { 'konachan-g': session.fromPartition(sitePartition('konachan-g')), pixiv: session.fromPartition(sitePartition('pixiv')), safebooru: session.fromPartition(sitePartition('safebooru')) }
     for (const [site, ses] of Object.entries(this.sessions) as [SiteId, Session][]) {
       secureSession(ses)
       ses.cookies.on('changed', () => { if (site === 'pixiv') void this.publish() })
@@ -57,7 +57,7 @@ export class SiteNetwork {
   async snapshot(): Promise<NetworkSnapshot> {
     await this.ready
     const cookies = this.verified ? await this.sessions.pixiv.cookies.get({ url: sites.pixiv.home }) : []
-    return { settings: structuredClone(this.settings), loggedIn: { 'konachan-g': false, pixiv: this.verified && cookies.some(c => c.name === 'PHPSESSID' && c.value.length > 0) } }
+    return { settings: structuredClone(this.settings), loggedIn: { 'konachan-g': false, safebooru: false, pixiv: this.verified && cookies.some(c => c.name === 'PHPSESSID' && c.value.length > 0) } }
   }
   private async publish(): Promise<void> { try { this.changed(await this.snapshot()) } catch { /* A failed session init is reported by the initiating request. */ } }
   async update(value: unknown): Promise<void> {

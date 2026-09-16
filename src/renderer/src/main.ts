@@ -1,4 +1,4 @@
-import type { Picture, SearchInput, VisualPage } from '../../shared/types'
+import type { Picture, SearchInput, VisualPage, SiteId } from '../../shared/types'
 import { showPreview } from './preview'
 import { installControls } from './controls'
 import { installDownloads } from './downloads'
@@ -32,7 +32,7 @@ async function startBrowser(): Promise<void> {
   $<HTMLInputElement>('size').value = String(settings.size)
   document.documentElement.style.setProperty('--picture-size', `${settings.size}px`)
   let pages: VisualPage[] = [], currentPage: VisualPage | undefined, visible: Picture[] = [], anchor = -1, busy = false, epoch = 0, hintEpoch = 0
-  let activeKeyword = '', activeSite: 'konachan-g' | 'pixiv' = 'konachan-g'
+  let activeKeyword = '', activeSite: SiteId = 'konachan-g'
   const selected = new Set<string>()
   const cards = new Map<string, HTMLElement>()
   const popup = $('search-popup'), menu = $('context-menu')
@@ -224,7 +224,7 @@ async function startBrowser(): Promise<void> {
     popup.hidden = true; menu.hidden = true; document.body.classList.add('has-search')
     const current = ++epoch; setBusy(true)
     try {
-      if (!next) { activeKeyword = value('keyword'); activeSite = networkInput().site ?? 'konachan-g'; const quality = $<HTMLSelectElement>('quality'); quality.replaceChildren(...(activeSite === 'pixiv' ? ['自动','原图','大图'] : ['原图','预览图','自动']).map(label => new Option(label))); pages = []; currentPage = undefined; $('pictures').replaceChildren(); $('pages').replaceChildren(); selected.clear(); cards.clear(); visible = []; $('no-results').hidden = true; selection() }
+      if (!next) { activeKeyword = value('keyword'); activeSite = networkInput().site ?? 'konachan-g'; const quality = $<HTMLSelectElement>('quality'); quality.replaceChildren(...(activeSite === 'pixiv' ? ['自动','原图','大图'] : activeSite === 'safebooru' ? ['原图','Jpeg图','预览图','自动'] : ['原图','预览图','自动']).map(label => new Option(label))); pages = []; currentPage = undefined; $('pictures').replaceChildren(); $('pages').replaceChildren(); selected.clear(); cards.clear(); visible = []; $('no-results').hidden = true; selection() }
       const result = await (next ? window.moe.next() : window.moe.search(input()))
       if (current !== epoch) return
       pages.push(result); display(result)
@@ -272,7 +272,7 @@ async function startBrowser(): Promise<void> {
       const lines: string[] = []
       for (const item of list) {
         if (item.site === 'pixiv' && !item.original) Object.assign(item, await window.moe.detail(item.key))
-        for (const page of item.pages ?? [item]) { const url = ['预览图','大图'].includes(quality) ? page.preview : page.original; if (url) lines.push(url) }
+        for (const page of item.pages ?? [item]) { const url = quality === 'Jpeg图' ? item.large || item.preview : ['预览图','大图'].includes(quality) ? page.preview : page.original; if (url) lines.push(url) }
       }
       $<HTMLTextAreaElement>('collected').value += lines.map(url => `${url}\n`).join('')
       if (epoch === currentEpoch) { selected.clear(); selection() }

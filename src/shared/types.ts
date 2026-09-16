@@ -35,6 +35,7 @@ export interface Picture {
   source: string
   detail: string
   thumbnail: string
+  large?: string
   preview: string
   original: string
   bytes: number
@@ -145,7 +146,7 @@ export interface DownloadTask {
 }
 export interface DownloadSnapshot { settings: DownloadSettings; tasks: DownloadTask[] }
 
-export type SiteId = 'konachan-g' | 'pixiv'
+export type SiteId = 'konachan-g' | 'pixiv' | 'safebooru'
 export type ProxyMode = 'none' | 'custom' | 'system'
 export interface NetworkSettings { globalMode: ProxyMode; proxyAddress: string; siteModes: Record<SiteId, ProxyMode | 'default'> }
 export interface NetworkSnapshot { settings: NetworkSettings; loggedIn: Record<SiteId, boolean> }

@@ -15,6 +15,7 @@ import { SiteNetwork } from './network'
 import { installLogin } from './login'
 import { allowedSiteUrl, siteForUrl, sites, validSite } from '../shared/network'
 import { pixivVisualPage, resolvePixiv } from '../shared/pixiv'
+import { parseSafebooruXml } from '../shared/safebooru'
 import { restoreSearchSettings, validateSearchSettings } from '../shared/search-settings'
 
 export function isSiteUrl(value: string): boolean {
@@ -46,7 +47,7 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
   const siteResponse = (url: string, signal: AbortSignal, referer?: string, retry = true): Promise<Response> => network.request(url, signal, referer, retry)
   const settingsPath = join(app.getPath('userData'), 'browser.json')
   const saved = existsSync(settingsPath) ? JSON.parse(readFileSync(settingsPath, 'utf8')) : {}
-  const state: BrowserState = { searchSettings: restoreSearchSettings(saved.searchSettings), siteCounts: { 'konachan-g': 60, pixiv: 60 }, count: 60, size: 192, history: [], acrylicEnabled: typeof saved.acrylicEnabled === 'boolean' ? saved.acrylicEnabled : true }
+  const state: BrowserState = { searchSettings: restoreSearchSettings(saved.searchSettings), siteCounts: { 'konachan-g': 60, pixiv: 60, safebooru: 60 }, count: 60, size: 192, history: [], acrylicEnabled: typeof saved.acrylicEnabled === 'boolean' ? saved.acrylicEnabled : true }
   setAcrylicEnabled(state.acrylicEnabled)
   if (saved.bounds && ['x', 'y', 'width', 'height'].every(key => Number.isFinite(saved.bounds[key])) && saved.bounds.width >= 700 && saved.bounds.height >= 400) state.bounds = saved.bounds
   if (Number.isInteger(saved.count) && saved.count >= 10 && saved.count <= 500) state.count = saved.count
@@ -54,8 +55,9 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
   if (Array.isArray(saved.history)) state.history = saved.history.filter((v: unknown) => typeof v === 'string' && v.length <= 1000).slice(0, state.searchSettings.historyLimit)
   state.siteCounts['konachan-g'] = state.count
   if (Number.isInteger(saved.siteCounts?.pixiv) && saved.siteCounts.pixiv >= 10 && saved.siteCounts.pixiv <= 500) state.siteCounts.pixiv = saved.siteCounts.pixiv
-  const viewedBySite = { 'konachan-g': new Viewed(typeof saved.viewed === 'string' ? saved.viewed : ''), pixiv: new Viewed(typeof saved.pixivViewed === 'string' ? saved.pixivViewed : '') }
-  const histories = { 'konachan-g': state.history, pixiv: Array.isArray(saved.pixivHistory) ? saved.pixivHistory.filter((v: unknown) => typeof v === 'string' && v.length <= 1000).slice(0,state.searchSettings.historyLimit) as string[] : [] }
+  if (Number.isInteger(saved.siteCounts?.safebooru) && saved.siteCounts.safebooru >= 10 && saved.siteCounts.safebooru <= 500) state.siteCounts.safebooru = saved.siteCounts.safebooru
+  const viewedBySite = { 'konachan-g': new Viewed(typeof saved.viewed === 'string' ? saved.viewed : ''), pixiv: new Viewed(typeof saved.pixivViewed === 'string' ? saved.pixivViewed : ''), safebooru: new Viewed(typeof saved.safebooruViewed === 'string' ? saved.safebooruViewed : '') }
+  const histories = { safebooru: Array.isArray(saved.safebooruHistory) ? saved.safebooruHistory.filter((v: unknown) => typeof v === 'string' && v.length <= 1000).slice(0,state.searchSettings.historyLimit) as string[] : [], 'konachan-g': state.history, pixiv: Array.isArray(saved.pixivHistory) ? saved.pixivHistory.filter((v: unknown) => typeof v === 'string' && v.length <= 1000).slice(0,state.searchSettings.historyLimit) as string[] : [] }
   const items = new Map<string, Picture>()
   const previews = new Map<number, Picture>()
   let input: SearchInput | undefined, searchAbort: AbortController | undefined, hintAbort: AbortController | undefined
@@ -103,7 +105,7 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
     event.preventDefault(); void confirmClose(true)
   })
   const save = (): void => {
-    writeFileSync(`${settingsPath}.tmp`, JSON.stringify({ ...state, viewed: viewedBySite['konachan-g'].encode(), pixivViewed: viewedBySite.pixiv.encode(), pixivHistory: histories.pixiv }))
+    writeFileSync(`${settingsPath}.tmp`, JSON.stringify({ ...state, viewed: viewedBySite['konachan-g'].encode(), pixivViewed: viewedBySite.pixiv.encode(), pixivHistory: histories.pixiv, safebooruHistory: histories.safebooru, safebooruViewed: viewedBySite.safebooru.encode() }))
     renameSync(`${settingsPath}.tmp`, settingsPath)
   }
   app.on('will-quit', save)
@@ -119,6 +121,7 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
     ipcMain.handle(`moe:${name}`, (event, value) => { authorize(event, onlyMain); return action(event, value) })
   }
   const getJson = async (url: string, signal: AbortSignal, referer?: string): Promise<any> => JSON.parse(new TextDecoder().decode(await limitedBody(await siteResponse(url, AbortSignal.any([signal, AbortSignal.timeout(40_000)]), referer), 8 * 1024 * 1024)))
+  const getSafebooru = async (url: string, signal: AbortSignal, root: 'posts' | 'tags'): Promise<Record<string, string>[]> => parseSafebooruXml(new TextDecoder().decode(await limitedBody(await siteResponse(url, AbortSignal.any([signal, AbortSignal.timeout(40000)])), 8 * 1024 * 1024)), root)
   const details = new Map<string, Promise<Picture>>()
   const detail = async (key: unknown, captured?: Picture): Promise<Picture> => {
     if (typeof key !== 'string') throw new Error('图片无效')
@@ -148,7 +151,7 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
       if (currentInput.site === 'pixiv' && !(await network.snapshot()).loggedIn.pixiv) throw new Error('需要重新登录Pixiv站点才能开始搜索')
       const page = currentInput.site === 'pixiv'
         ? await pixivVisualPage(currentInput, nextPage, pageIndex + 1, offset, viewed, (url, referer) => getJson(url, signal, referer), signal, pixivCursor)
-        : await visualPage(currentInput, nextPage, pageIndex + 1, offset, viewed, u => getJson(u, signal), signal)
+        : await visualPage(currentInput, nextPage, pageIndex + 1, offset, viewed, u => currentInput.site === 'safebooru' ? getSafebooru(u, signal, 'posts') : getJson(u, signal), signal)
       if (current !== generation) throw new Error('搜索已取消')
       page.items.forEach((item, index) => { item.key = `${current}-${page.index}-${index}`; item.site = currentInput.site ?? 'konachan-g'; item.keyword = currentInput.keyword; items.set(item.key, item) })
       pixivCursor = page.cursor || ''; nextPage = page.nextPage; pageIndex++; offset += page.items.length; complete = page.complete
@@ -162,16 +165,16 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
   handle('logout', (_event, site) => { if (!validSite(site)) throw new Error('站点无效'); return network.logout(site) })
   handle('detail', (_event, key) => detail(key))
   handle('enqueue', async (_event, value) => {
-    if (!value || !Array.isArray(value.keys) || !value.keys.length || value.keys.length > 5000 || !['原图', '预览图', '大图', '自动'].includes(value.quality)) throw new Error('下载参数无效')
+    if (!value || !Array.isArray(value.keys) || !value.keys.length || value.keys.length > 5000 || !['原图', '预览图', '大图', 'Jpeg图', '自动'].includes(value.quality)) throw new Error('下载参数无效')
     // Capture authorized entries before awaiting details; a new search may clear the current map.
     const selected: Picture[] = value.keys.map((key: unknown) => { if (typeof key !== 'string' || !items.has(key)) throw new Error('图片不存在'); return items.get(key)! })
     const sources: DownloadSource[] = []
     for (const picture of selected) {
       const item = picture.site === 'pixiv' && !picture.original ? await detail(picture.key, picture) : picture
-      const site = item.site ?? 'konachan-g', preview = value.quality === '预览图' || value.quality === '大图'
-      const url = preview ? item.preview : item.original
+      const site = item.site ?? 'konachan-g', preview = value.quality === '预览图' || value.quality === '大图' || value.quality === 'Jpeg图'
+      const url = value.quality === 'Jpeg图' ? item.large || item.preview : preview ? item.preview : item.original
       if (!allowedSiteUrl(url, site)) throw new Error('下载地址不受支持')
-      const source: DownloadSource = { id:item.id, title:item.title, author:item.author, authorId:item.authorId, tags:item.tags, date:item.date, detail:item.detail, site, picture:item, url, referer:site === 'pixiv' || !preview ? item.detail : home, keyword:item.keyword ?? '' }
+      const source: DownloadSource = { id:item.id, title:item.title, author:item.author, authorId:item.authorId, tags:item.tags, date:item.date, detail:item.detail, site, picture:item, url, referer:site === 'pixiv' || !preview ? item.detail : sites[site].home, keyword:item.keyword ?? '' }
       if (item.pages && item.pages.length > 1) source.children = item.pages.map(page => ({ ...source, picture: undefined, url: preview ? page.preview : page.original }))
       sources.push(source)
     }
@@ -235,7 +238,7 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
     searchAbort?.abort(); generation++; searchAbort = undefined; hintAbort?.abort()
     input = validated; nextPage = input.page; pageIndex = 0; offset = 0; complete = false; pixivCursor = ''; items.clear()
     state.siteCounts[input.site ?? 'konachan-g'] = input.count
-    if (input.site !== 'pixiv') state.count = input.count
+    if (!input.site || input.site === 'konachan-g') state.count = input.count
     const history = histories[input.site ?? 'konachan-g']
     if (input.keyword) {
       const old = history.indexOf(input.keyword)
@@ -273,6 +276,10 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
       if (!Array.isArray(value?.candidates)) throw new Error('关键词提示格式无效')
       return value.candidates.map((item: any) => ({ word: String(item.tag_name ?? ''), count: '' }))
     }
+    if (site === 'safebooru') {
+      const records = await getSafebooru(`${sites.safebooru.home}/index.php?${new URLSearchParams({page:'dapi',s:'tag',q:'index',order:'name',limit:'8',name:keyword})}`, signal, 'tags')
+      return records.slice(0,8).map(record => ({word:record.name || '',count:record.count || ''}))
+    }
     const data = await getJson(`${home}/tag.json?${new URLSearchParams({ limit: '15', order: 'count', name: keyword })}`, AbortSignal.any([signal, AbortSignal.timeout(15_000)]))
     if (!Array.isArray(data)) throw new Error('关键词提示格式无效')
     return data.slice(0, 15).map(item => ({ word: String(item.name ?? ''), count: String(item.count ?? '') }))
@@ -307,7 +314,7 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
       const item = items.get(key) ?? [...previews.values()].find(i => i.key === key) ?? queue.tasks.find(task => task.source.picture?.key === key)?.source.picture
       if (!item) return new Response(null, { status: 404 })
       if (!allowedSiteUrl(item[kind], item.site ?? 'konachan-g')) return new Response(null, { status: 400 })
-      const response = await siteResponse(item[kind], AbortSignal.any([request.signal, AbortSignal.timeout(kind === 'thumbnail' ? 20_000 : 30_000)]), item.site === 'pixiv' ? item.detail : home)
+      const response = await siteResponse(item[kind], AbortSignal.any([request.signal, AbortSignal.timeout(kind === 'thumbnail' ? 20_000 : 30_000)]), item.site === 'pixiv' ? item.detail : sites[item.site ?? 'konachan-g'].home)
       const type = response.headers.get('content-type')?.split(';')[0].trim() ?? ''
       if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'].includes(type)) { await response.body?.cancel(); throw new Error('图片类型无效') }
       const body = await limitedBody(response, 40 * 1024 * 1024, kind === 'preview' ? (loaded, total) => {
