@@ -1,0 +1,69 @@
+{
+  "head": "f37c5116f0b9b82d795c85549041373e22b2967a",
+  "files": [
+    {
+      "path": "MoeLoaderP.Core/MoeDownloader.cs",
+      "sha256": "a2949e7ae09dd70a849a8126566c5a9ae3e819610708ebe9c7114be19b0d0127"
+    },
+    {
+      "path": "MoeLoaderP.Core/MoeItem.cs",
+      "sha256": "6dc5832c022b80ae0adca9eb6433b5fba572e03bc0d449df82f558323e5e9155"
+    },
+    {
+      "path": "MoeLoaderP.Core/MoeItemHelper.cs",
+      "sha256": "64cdda6316e7e61fc61ebaf482c278e0545d0c0ceea5e7ec5f72f7d98a43a26f"
+    },
+    {
+      "path": "MoeLoaderP.Core/Settings.cs",
+      "sha256": "83b991e4fb2811467424051a8c7e50b48a85dcd4184c751490f8ccbcb6b37c10"
+    },
+    {
+      "path": "MoeLoaderP.Core/UnfinishedDownloadMlpub.cs",
+      "sha256": "d05e1165a30017bb3c09777de6042b856d6ba264f2290d9476181aed3ae3722e"
+    },
+    {
+      "path": "MoeLoaderP.Wpf/ControlParts/DownloaderControl.xaml",
+      "sha256": "4a09878d94ea734fd2fa0e9b6e2a0a1b98b83bb25fe0eabc21b552e66d92bf26"
+    },
+    {
+      "path": "MoeLoaderP.Wpf/ControlParts/DownloaderControl.xaml.cs",
+      "sha256": "a70ac3d08de060d27e511858c29831d894727339c32619dd95bb97ba06b5cc6c"
+    },
+    {
+      "path": "MoeLoaderP.Wpf/ControlParts/MoeExplorerControl.xaml.cs",
+      "sha256": "4bd0d29dfd9e3e4023732f6c7b7c13baeeb89996d670294850e38117ca4914c4"
+    },
+    {
+      "path": "MoeLoaderP.Wpf/MainWindow.xaml.cs",
+      "sha256": "8a0269cac79409357f5d35984249704c0ce2917f749408818332df45273be7f8"
+    },
+    {
+      "path": "MoeLoaderP.Wpf/UnfinishedDownloadExportUi.cs",
+      "sha256": "87c88864f431e149c655ce20aab770f075920dcf355d16044d2f4d3d12a4847f"
+    },
+    {
+      "path": "MoeLoaderP.Wpf/Assets/MoeResource.xaml",
+      "sha256": "8bcd1a2cccbd1bf96717dc0ac2f3998bf52e33c584995f55654eafb9336f4bf3"
+    },
+    {
+      "path": "MoeLoaderP.Wpf/ControlParts/SettingsControl.xaml",
+      "sha256": "fe9e274364f40554eab60789dcd7a31ea3b079906e327bd4182acfcde1cf639c"
+    },
+    {
+      "path": "MoeLoaderP.Wpf/ControlParts/SettingsControl.xaml.cs",
+      "sha256": "e58abe6494ae1c03953627781e0984826afe767dd479de1d4890576a76823cdd"
+    },
+    {
+      "path": "MoeLoaderP.Wpf/Assets/MoeStyle.xaml",
+      "sha256": "95a6e3e67bd05d5ca3c07a7eda52898036cc97483f4fa1dae6299177facafebe"
+    },
+    {
+      "path": "MoeLoaderP.Wpf/Assets/Lang/zh-CN.xaml",
+      "sha256": "96837fa580e61e7a8f434b1ade2b54ef0a1329f4b3324f338a4166f018e6d26f"
+    },
+    {
+      "path": "MoeLoaderP.Wpf/MainWindow.xaml",
+      "sha256": "e395e03971522716d99e490c095504ef4ce5ac7e9a7f89e41838615dfeeca646"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "source": "MoeLoaderP f37c511 XAML: MainWindow, DownloaderControl, SettingsControl, MoeResource, MoeStyle; dimensions are DIPs, not a Windows screenshot baseline",
+  "panelWidth": 220,
+  "listInset": 3,
+  "rowHeight": 42,
+  "rowGap": 3,
+  "thumbnailSize": 38,
+  "thumbnailInset": 2,
+  "columns": [42, 22],
+  "childHeight": 20,
+  "menuContentWidth": 158,
+  "menuPadding": 4,
+  "menuBorder": 1,
+  "menuRowHeight": 22,
+  "settingsContentWidth": 310,
+  "settingsContentHeight": 560,
+  "settingsPadding": 6,
+  "settingsBorder": 1,
+  "settingsGroups": ["自定义站点设置", "代理设置", "搜索设置", "下载设置", "软件设置"],
+  "menuLabels": ["打开文件位置", "全选(Ctrl+A)", "停止", "删除", "重试", "导出未成功任务", "全部开始", "全部停止", "删除已完成任务"],
+  "limits": {"concurrency": [1, 15], "firstCount": [1, 99], "tagCount": [0, 100]}
+}

@@ -1,6 +1,7 @@
 import type { Picture, SearchInput, VisualPage } from '../../shared/types'
 import { showPreview } from './preview'
 import { installControls } from './controls'
+import { installDownloads } from './downloads'
 
 installControls()
 
@@ -23,6 +24,7 @@ function button(label: string, action: () => void, title?: string): HTMLButtonEl
 
 async function startBrowser(): Promise<void> {
   const settings = await window.moe.init()
+  const enqueue = await installDownloads(text => message(text))
   $<HTMLInputElement>('count').value = String(settings.count)
   $<HTMLInputElement>('size').value = String(settings.size)
   document.documentElement.style.setProperty('--picture-size', `${settings.size}px`)
@@ -40,6 +42,9 @@ async function startBrowser(): Promise<void> {
     for (const [key, card] of cards) { card.classList.toggle('selected', selected.has(key)); card.querySelector<HTMLInputElement>('input')!.checked = selected.has(key) }
     $('selection-actions').hidden = selected.size === 0
     $('selection-count').textContent = `已选择${selected.size}张（组）图片`
+  }
+  async function downloadSelected(): Promise<void> {
+    if (await enqueue([...selected], value('quality'))) { selected.clear(); selection() }
   }
   function choose(index: number, shift: boolean): void {
     const key = visible[index].key, add = !selected.has(key)
@@ -87,7 +92,7 @@ async function startBrowser(): Promise<void> {
     const iconButton = (icon: string, label: string, action: () => void) => { const b = button(label, action); const i = document.createElement('i'); i.textContent = icon; b.prepend(i); return b }
     for (const [icon, label, action] of [['\uf560', '全选', 'all'], ['\uf05e', '全不选', 'none'], ['\uf074', '反选', 'invert']]) row.append(iconButton(icon, label, () => { operate(action); menu.hidden = true }))
     const actions = document.createElement('div'); actions.className = 'context-actions secondary'
-    actions.append(iconButton('\uf2f9', '重试失败', () => { retryFailed(); menu.hidden = true }), iconButton('\uf019', '下载', () => pending('下载所选')))
+    actions.append(iconButton('\uf2f9', '重试失败', () => { retryFailed(); menu.hidden = true }), iconButton('\uf019', '下载', () => { void downloadSelected() }))
     menu.append(row, actions)
     if (item) {
       for (const [name, text] of [['ID:', String(item.id)], ['Uploader:', item.author], ['UpID:', item.authorId], ['Date:', item.date]]) {
@@ -131,7 +136,7 @@ async function startBrowser(): Promise<void> {
         ['\uf2f9', '刷新', () => load(card, item)],
         ['\uf002', '预览图', () => { void window.moe.preview(item.key).catch(failure) }],
         ['\uf35d', '打开网页', () => { void window.moe.open(item.key).catch(failure) }],
-        ['\uf019', '下载', () => pending('下载')]
+        ['\uf019', '下载', () => { void enqueue([item.key], value('quality')) }]
       ] as const) { const b = button('', action, title); const i = document.createElement('i'); i.textContent = icon; b.append(i); operations.append(b) }
       card.onclick = event => { if ((event.target as HTMLElement).closest('button') || dragged) { dragged = false; return }; choose(index, event.shiftKey) }
       card.oncontextmenu = event => { event.stopPropagation(); context(event, item) }
@@ -201,6 +206,7 @@ async function startBrowser(): Promise<void> {
   $('log-toggle').onclick = () => { $('log').hidden = !$('log').hidden }
   $('copy-collected').onclick = () => { void window.moe.copy(value('collected')).catch(failure) }
   $('clear-collected').onclick = () => { $<HTMLTextAreaElement>('collected').value = '' }
+  $('download-selected').onclick = () => { void downloadSelected() }
   $('export-selected').onclick = () => {
     for (const item of visible) if (selected.has(item.key)) $<HTMLTextAreaElement>('collected').value += `${value('quality') === '预览图' ? item.preview : item.original}\n`
     selected.clear(); selection(); message('已添加至收集箱')
@@ -227,7 +233,7 @@ async function startBrowser(): Promise<void> {
     if ((event.ctrlKey || command) && ['a', 'd', 'r'].includes(event.key.toLowerCase())) {
       event.preventDefault()
       if (event.key.toLowerCase() === 'a') operate('all')
-      if (event.key.toLowerCase() === 'd' && selected.size) pending('下载所选')
+      if (event.key.toLowerCase() === 'd' && selected.size) void downloadSelected()
       if (event.key.toLowerCase() === 'r') retryFailed()
     }
   })

@@ -38,12 +38,23 @@ export interface VisualPage {
   error?: string
 }
 export interface BrowserState {
+  acrylicEnabled: boolean
   count: number
   size: number
   history: string[]
   bounds?: { x: number; y: number; width: number; height: number }
 }
 export interface BrowserApi {
+  downloads(): Promise<DownloadSnapshot>
+  onDownloads(callback: (value: DownloadSnapshot) => void): () => void
+  enqueue(keys: string[], quality: string): Promise<number>
+  downloadAction(action: DownloadAction, ids: string[]): Promise<void>
+  downloadSettings(value: DownloadSettings): Promise<void>
+  downloadDirectory(): Promise<string | undefined>
+  revealDownload(id: string): Promise<void>
+  exportDownloads(): Promise<boolean>
+  importDownloads(text: string): Promise<{ added: number; errors: string[] }>
+  setAcrylic(enabled: boolean): Promise<void>
   appearance(): Promise<Appearance>
   onAppearance(callback: (value: Appearance) => void): () => void
   init(): Promise<BrowserState>
@@ -59,7 +70,50 @@ export interface BrowserApi {
   size(value: number): Promise<void>
   count(value: number): Promise<void>
 }
-export interface Appearance { dark: boolean; active: boolean; nativeBlur: boolean; platform: string }
+export interface Appearance { acrylicEnabled: boolean; reducedTransparency: boolean; dark: boolean; active: boolean; nativeBlur: boolean; platform: string }
 declare global { interface Window { moe: BrowserApi } }
 
 export const defaults: SearchInput = { keyword: '', page: 1, count: 60, filterResolution: false, minWidth: 1024, minHeight: 768, orientation: 0 }
+
+export interface DownloadSettings {
+  directory: string
+  concurrency: number
+  fileTemplate: string
+  folderTemplate: string
+  autoRename: boolean
+  tagCount: number
+  firstOnly: boolean
+  firstCount: number
+}
+export interface DownloadSource {
+  id: string | number
+  url: string
+  referer: string
+  detail: string
+  keyword: string
+  title?: string
+  author?: string
+  authorId?: string
+  tags: string[]
+  date?: string
+  name?: string
+  picture?: Picture
+  children?: DownloadSource[]
+}
+export type DownloadStatus = 'queued' | 'downloading' | 'stopped' | 'failed' | 'success' | 'skip' | 'cancelled'
+export type DownloadAction = 'stop' | 'retry' | 'remove' | 'clear'
+export interface DownloadTask {
+  id: string
+  source: DownloadSource
+  path: string
+  root: string
+  name: string
+  status: DownloadStatus
+  text: string
+  loaded: number
+  total: number
+  progress: number
+  autoRename: boolean
+  children?: DownloadTask[]
+}
+export interface DownloadSnapshot { settings: DownloadSettings; tasks: DownloadTask[] }

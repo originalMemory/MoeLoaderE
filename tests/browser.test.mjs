@@ -1,18 +1,21 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { _electron as electron } from 'playwright'
+import { downloadDefaults } from '../src/main/downloads.ts'
 
 test('单站点搜索、选择、分页、预览与 IPC 验收', { timeout: 40_000 }, async (t) => {
   const profile = await mkdtemp(join(tmpdir(), 'moeloader-browser-'))
+  await writeFile(join(profile, 'downloads.json'), JSON.stringify(downloadDefaults(join(profile, 'pictures'))))
   const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE; delete env.ELECTRON_RENDERER_URL
   let app
   t.after(async () => { if (app) await app.close(); assert.equal(dirname(resolve(profile)), resolve(tmpdir())); await rm(profile, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }) })
   app = await electron.launch({ args: ['.', `--user-data-dir=${profile}`], env })
-  await app.evaluate(({ session, nativeImage, clipboard }) => {
+  await app.evaluate(({ session, nativeImage, clipboard, dialog }) => {
     globalThis.queries = []
+    dialog.showMessageBox = async () => ({ response: 1 })
     clipboard.writeText = text => { globalThis.copiedText = text }
     const pixels = Buffer.alloc(640 * 360 * 4, 180)
     for (let i = 3; i < pixels.length; i += 4) pixels[i] = 255
@@ -53,7 +56,10 @@ test('单站点搜索、选择、分页、预览与 IPC 验收', { timeout: 40_0
     await page.keyboard.press('Meta+a')
     assert.equal(await page.locator('.picture.selected').count(), 10, 'Mac Command+A 应全选图片')
     await page.keyboard.press('Meta+d')
-    assert.match(await page.locator('#toast').textContent(), /下载所选尚未迁移/)
+    await page.waitForFunction(() => document.querySelector('#toast').textContent.includes('已加入 10 个下载任务'))
+    await page.locator('.download-row[data-status=success]').nth(9).waitFor()
+    await page.locator('#download-toggle').click()
+    await page.locator('#gallery').focus(); await page.keyboard.press('Meta+a')
     await page.locator('#keyword').focus()
     await page.keyboard.press('Meta+a')
     assert.deepEqual(await page.locator('#keyword').evaluate(el => [el.selectionStart, el.selectionEnd]), [0, 9], '输入框保留 Command+A 文本全选')

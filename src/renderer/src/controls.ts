@@ -1,12 +1,25 @@
 import type { Appearance } from '../../shared/types'
 
 export function installControls(): void {
+  const acrylic = document.querySelector<HTMLInputElement>('#acrylic-enabled')!
+  let currentAppearance: Appearance | undefined
   const apply = (value: Appearance): void => {
+    currentAppearance = value
+    acrylic.checked = value.acrylicEnabled
+    acrylic.title = value.reducedTransparency ? '系统已开启降低透明度；关闭系统限制后恢复毛玻璃。' : ''
     const root = document.documentElement
     root.dataset.theme = value.dark ? 'dark' : 'light'
     root.dataset.active = String(value.active)
     root.dataset.nativeBlur = String(value.nativeBlur)
     root.dataset.platform = value.platform
+  }
+  acrylic.onchange = () => {
+    acrylic.disabled = true
+    void window.moe.setAcrylic(acrylic.checked).catch(error => {
+      if (currentAppearance) acrylic.checked = currentAppearance.acrylicEnabled
+      const toast = document.querySelector<HTMLElement>('#toast')!
+      toast.textContent = String(error); toast.hidden = false
+    }).finally(() => { acrylic.disabled = false })
   }
   const dispose = window.moe.onAppearance(apply)
   void window.moe.appearance().then(apply).catch(console.error)

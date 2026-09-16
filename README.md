@@ -4,7 +4,7 @@
 
 - 技术路线：Electron + TypeScript。
 - 初始目标：Windows、macOS 桌面端；Linux 暂不考虑，移动端和浏览器版未纳入。
-- 当前状态：第二阶段 Konachan-G 浏览闭环与 Windows 视觉补齐已完成，整体 review 问题已修复；下载与登录尚未迁移。
+- 当前状态：阶段 3 下载主体已实现并通过 Mac 验证，待 review；包含队列、命名、停止重试、任务包和安全落盘。登录与其他站点尚未迁移。
 - 迁移原则：逻辑、UI 布局、样式、文案与交互保持源项目一致，差异逐项记录，不默默改变行为。
 
 ## 本地开发
@@ -32,9 +32,9 @@ npx --no install-electron
 | `npm run build` | 类型检查并生成 `out/` 生产文件，不生成安装包 |
 | `npm start` | 启动已构建的本地应用；先执行 `npm run build` |
 | `npm test` | 构建并运行真实 Electron 窗口检查，需要桌面会话；无需额外安装 Playwright 浏览器 |
-| `npm run test:online` | 独立的真实站点检查：搜索 10 张图片，验证缩略图与预览；需要网络 |
+| `npm run test:online` | 独立的真实站点检查：搜索 10 张图片，验证缩略图、预览与单张真实下载；需要网络 |
 
-默认测试使用本地响应，覆盖搜索/过滤/分页/已读、选择/预览/取消、IPC 边界与启动回归；在线检查单独运行。截图写入忽略目录 `artifacts/`。macOS 启动生命周期、浏览和 Command 快捷键已在实机验证；安装包尚未验收。
+默认测试使用本地响应，覆盖浏览、下载实际文件/同名竞争/取消重试/组图、任务包、IPC 边界与启动回归；在线检查单独运行，下载文件使用独立临时目录并在测试后清理。截图写入忽略目录 `artifacts/`。macOS 启动生命周期、浏览和 Command 快捷键已在实机验证；安装包尚未验收。
 
 ## 工程结构
 
@@ -44,9 +44,9 @@ npx --no install-electron
 - `src/renderer/`：原版布局的 HTML/CSS/TypeScript 实现与独立预览。
 - `tests/`：逻辑和桌面检查，使用临时浏览器配置目录。
 
-Windows 材质通过 Koffi 在主进程调用窗口合成接口，使用原版 FluentWPF 噪点及配色；macOS 使用系统 vibrancy。已验证 Windows 10 及 macOS 窗口运行与外观；Windows 11 尚未实测。打包阶段需保留 Koffi 的平台原生模块。
+Windows 材质通过 Koffi 在主进程调用窗口合成接口，使用原版 FluentWPF 噪点及配色；macOS 使用系统 vibrancy，并减轻页面重复染色。顶部“软件设置”的毛玻璃开关已接通并记忆，主窗口与预览同步；失焦或系统开启“降低透明度”时使用不透明回退色。已验证 Windows 10 及 macOS 窗口运行与外观；Windows 11 尚未实测。打包阶段需保留 Koffi 的平台原生模块。
 
-构建采用 electron-vite 5 + Vite 7，依赖固定版本。不使用额外 UI 框架或 C# 应用子进程。浏览设置保存在 Electron userData 下的 `browser.json`，不会改写原项目设置。
+构建采用 electron-vite 5 + Vite 7，依赖固定版本。不使用额外 UI 框架或 C# 应用子进程。浏览设置保存在 Electron userData 下的 `browser.json`，下载设置保存在 `downloads.json`，不会改写原项目设置。默认下载目录为系统图片目录下的 `MoeLoaderE`；顶部“软件设置”中的下载设置可调整目录、命名及并发，修改即时生效。将 `.mlpub` 拖入下载面板导入任务，在任务右键菜单导出未成功任务。
 
 ## 开发入口
 
@@ -55,6 +55,7 @@ Windows 材质通过 Koffi 在主进程调用窗口合成接口，使用原版 F
 - [第二阶段：单站点浏览转写提案](openspec/changes/port-booru-browser/proposal.md)
 - [第二阶段实施任务](openspec/changes/port-booru-browser/tasks.md)
 - [第二阶段 review 与差异](openspec/changes/port-booru-browser/review.md)
+- [第三阶段下载主体与验证](openspec/changes/port-download-queue/review.md)
 
 每阶段完成后停下来 review，经确认再进入下一阶段。
 

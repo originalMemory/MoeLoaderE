@@ -6,9 +6,11 @@
 body { margin: 0; overflow: hidden; height: 100vh; border: 1px solid #808080; isolation: isolate; }
 body::before, body::after { content: ''; position: fixed; inset: 1px; pointer-events: none; z-index: -1; }
 body::before { background: var(--tint); opacity: .6; z-index: -2; }
+/* macOS vibrancy already supplies a tint; avoid covering it with the Windows tint again. */
+:root[data-platform=darwin][data-active=true][data-native-blur=true] body::before { opacity: .12; }
 body::after { background: url('/assets/fluent-noise.png') repeat; background-size: 128px 128px; opacity: .03; }
 :root[data-active=false] body::before, :root[data-native-blur=false] body::before { background: var(--fallback); opacity: 1; }
-:root[data-active=false] body::after { opacity: 0; }
+:root[data-active=false] body::after, :root[data-native-blur=false] body::after { opacity: 0; }
 #window-titlebar { height: 30px; color: var(--chrome-text); -webkit-app-region: drag; user-select: none; padding: 5px 8px; }
 :root[data-active=false] #window-title { color: #808080; }
 :root[data-platform=darwin] #window-titlebar { padding-left: 78px; }
@@ -129,7 +131,11 @@ footer button { color: black; height: 22px; padding: 1px 4px; }
 #context-menu .context-actions button { background: none; border: none; margin: 0; padding: 0; font-size: 14px; border-radius: 0; }
 .context-actions i { margin-right: 6px; }
 .context-actions button:hover { box-shadow: none; background: #00b9ff30 !important; }
-#downloads { position: absolute; right: 0; top: 0; bottom: 0; width: 220px; padding: 12px; border-left: 1px solid #aaa; background: #eee; }
+#downloads { position: absolute; right: 0; top: 0; bottom: 0; width: 0; overflow: hidden; background: transparent; transition: width .5s cubic-bezier(.075,.82,.165,1); }
+#downloads[hidden] { display: block !important; pointer-events: none; }
+.downloads-open #downloads { width: 220px; }
+#gallery, #browse-controls { transition: right .5s cubic-bezier(.075,.82,.165,1); }
+.downloads-open #workspace { background: linear-gradient(to right, #ffffff59 calc(100% - 220px), transparent calc(100% - 220px)); }
 .downloads-open #gallery, .downloads-open #browse-controls { right: 220px; }
 #preview { height: calc(100vh - 32px); position: relative; color: var(--chrome-text); }
 #preview-info { display: flex; align-items: center; gap: 12px; position: absolute; z-index: 2; left: 0; top: 0; height: 56px; padding: 0 8px; pointer-events: none; }
@@ -171,3 +177,72 @@ footer button { color: black; height: 22px; padding: 1px 4px; }
 ::-webkit-scrollbar-thumb { background: #60606066; border: 3px solid transparent; border-radius: 8px; background-clip: padding-box; }
 ::-webkit-scrollbar-thumb:hover { background-color: #606060bb; }
 ::-webkit-scrollbar-corner { background: transparent; }
+#download-list { width: 220px; height: 100%; overflow-y: auto; overflow-x: hidden; padding: 3px; }
+.download-row { position: relative; display: grid; grid-template-columns: 42px 22px minmax(0,1fr); grid-template-rows: 21px 21px auto; margin-bottom: 3px; cursor: default; color: #000; border-radius: 8px; animation: download-in .5s cubic-bezier(.215,.61,.355,1); }
+@keyframes download-in { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
+.download-row::before, .download-row::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s cubic-bezier(.075,.82,.165,1); }
+.download-row::before { border: 2px solid #007cffca; border-radius: 8px; z-index: 2; }
+.download-row::after { background: #ffffff4c; border-radius: 7px; z-index: 3; }
+.download-row.selected::before { opacity: 1; }
+.download-row:hover::after { opacity: 1; }
+.download-row:focus-visible { outline: 1px dotted #0006; outline-offset: -2px; }
+.download-row progress { height: 100%; width: 100%; appearance: none; pointer-events: none; border: none; }
+.download-row > progress { position: absolute; top: 0; left: 0; height: 42px; }
+.download-row progress::-webkit-progress-bar { background: linear-gradient(#f1f1f1,#fff); border: 1px solid #808080; border-radius: 6px; }
+.download-row progress::-webkit-progress-value { background: linear-gradient(#0093ff,#b2deff); border: 1px solid #808080; border-radius: 6px; opacity: .6; }
+.download-row > .download-thumbnail { width: 38px; height: 38px; margin: 2px; grid-row: 1 / 3; border-radius: 4px; border: 1px solid #808080; position: relative; }
+.download-row > strong { grid-column: 2 / 4; font-weight: normal; margin: 0 2px; align-self: center; }
+.download-row > i { grid-column: 2; grid-row: 2; text-align: center; font-size: 12px; align-self: center; position: relative; }
+.download-row > .download-status { grid-column: 3; grid-row: 2; align-self: center; font-size: 12px; }
+.download-row > strong, .download-row > .download-status { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; position: relative; }
+.download-children { grid-column: 1 / 4; grid-row: 3; }
+.download-subitem { position: relative; height: 20px; display: flex; align-items: center; padding-left: 10px; }
+.download-subitem progress { position: absolute; left: 10px; width: calc(100% - 10px); }
+.download-subitem .branch-mark { position: absolute; left: .545px; top: -7.278px; width: 9.233px; height: 20.934px; overflow: visible; }
+.download-subitem b { position: relative; width: 16px; height: 16px; flex-shrink: 0; margin-left: 2px; border: 1px solid #000; border-radius: 10px; background: linear-gradient(#d1d1d1,#fff); font-size: 10px; text-align: center; }
+.download-subitem i { position: relative; font-size: 10px; width: 12px; margin-left: 2px; text-align: center; }
+.download-subitem .subitem-name { position: relative; overflow: hidden; white-space: nowrap; font-size: 9px; margin: 0 6px 0 3px; }
+#download-menu { width: 168px; padding: 4px; color: #000; box-shadow: 0 1px 11px #000000a1; }
+#download-menu button { display: grid; grid-template-columns: 22px 1fr; align-items: center; width: 158px; height: 22px; padding: 0; border: none; background: transparent; border-radius: 4px; text-align: left; }
+#download-menu button > span:last-child { margin-left: 4px; }
+#download-menu button:hover { background: linear-gradient(#6f6f6fcc,#292929cc 49.2%); box-shadow: 0 0 4px #00b9ff; }
+#download-menu .menu-icon { position: relative; height: 22px; display: grid; place-items: center; }
+#download-menu .menu-icon i { font-size: 12px; }
+#download-menu .menu-icon:has(small) i { margin-bottom: 7px; }
+#download-menu small { position: absolute; bottom: -1px; font-size: 8px; }
+#settings-popup { width: 324px; height: 574px; padding: 6px; color: #000; display: flex; }
+#settings-scroll { width: 310px; height: 560px; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+#settings-scroll fieldset { margin: 0 0 4px; padding: 0 6px 6px; min-width: 0; border: 1px solid #808080; border-radius: 4px; }
+#settings-scroll legend { margin-left: 2px; padding: 2px; line-height: 14px; border: 1px solid #808080; border-radius: 5px; background: linear-gradient(#d5d5d5,#fff 49.8%); }
+.settings-content { margin: 4px; }
+.settings-wide { width: 100%; height: 24px; padding: 0; }
+.settings-line { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 30px; }
+.settings-line > input, .settings-line > .number-control, .settings-line > .select-control { width: 150px; flex-shrink: 0; height: 26px; }
+.settings-line > input, .settings-path > input { min-width: 0; padding: 2px 4px; border: 1px solid #808080; border-radius: 4px; background: linear-gradient(#f1f1f1,#fff); }
+.settings-check { display: flex; align-items: center; white-space: nowrap; }
+.settings-check input { flex-shrink: 0; }
+.viewed-setting { margin: 8px 0 4px; }
+#download-settings .download-concurrency { min-height: 24px; }
+#download-settings .download-concurrency .number-control { height: 24px; }
+#download-settings .first-count { margin-top: 2px; min-height: 25px; }
+.first-count .number-control, .tag-count .number-control { width: 80px; }
+.first-count .number-control { height: 24px; }
+#first-count-text { margin: 0 3px; }
+.settings-caption { display: block; margin: 2px 0; }
+.settings-caption[for=save-directory] { margin: 4px 0; }
+.settings-path { display: flex; gap: 6px; height: 26px; margin: 2px 0; }
+.settings-path > input { flex: 1; }
+.settings-path > button { width: 26px; height: 26px; flex-shrink: 0; padding: 0; }
+.settings-path:has([name=directory]) { gap: 7px; margin-bottom: 4px; }
+.rename-tokens { display: flex; flex-wrap: wrap; }
+.rename-tokens button { height: 24px; margin: 2px; padding: 0 4px; }
+.rename-setting { margin: 4px 0 0; }
+#download-settings .tag-count { min-height: 26px; }
+.settings-background { display: flex; align-items: center; gap: 4px; }
+.settings-background button { width: 22px; height: 22px; padding: 0; }
+.settings-background ~ .settings-check { margin-top: 6px; }
+
+.download-thumbnail img { width: 100%; height: 100%; object-fit: cover; border-radius: 3px; }
+
+.downloads-open:not(.has-search) #search-form { left: calc(50% - 110px); }
+#settings-toggle[aria-expanded=true], .downloads-open #download-toggle { background: #3591ff5a; }

@@ -13,7 +13,7 @@
     <div id="browser">
       <header>
         <button id="logo" title="MoeLoader"><img src="/assets/banner.png" alt="MoeLoader +1s" /></button>
-        <nav><button data-pending="软件设置"><i></i>软件设置</button><span>|</span><button id="download-toggle"><i></i>下载管理</button><span>|</span><button data-pending="关于/捐助"><i></i>关于/捐助</button></nav>
+        <nav><button id="settings-toggle" aria-expanded="false" aria-controls="settings-popup"><i></i>软件设置</button><span>|</span><button id="download-toggle"><i></i>下载管理</button><span>|</span><button data-pending="关于/捐助"><i></i>关于/捐助</button></nav>
       </header>
       <main id="workspace">
         <form id="search-form">
@@ -39,11 +39,13 @@
         <section id="gallery" aria-label="图片列表" tabindex="0"><div id="pictures"></div><div id="selection-box" hidden></div></section>
         <div id="no-results" hidden>无结果</div>
         <div id="browse-controls" hidden>
-          <div id="selection-actions" hidden><span id="selection-count"></span><button data-pending="下载所选">下载所选</button><button id="export-selected">导出地址</button></div>
+          <div id="selection-actions" hidden><span id="selection-count"></span><button id="download-selected">下载所选</button><button id="export-selected">导出地址</button></div>
           <div id="paging"><div id="pages"></div><button id="next" title="下一页"><i></i></button></div>
           <div id="download-type"><label for="quality">下载图片类型</label><select id="quality"><option>原图</option><option>预览图</option><option>自动</option></select></div>
         </div>
-        <aside id="downloads" hidden><h3>下载管理</h3><p>下载队列尚未迁移，将在下一阶段实现。</p></aside>
+        <aside id="downloads" hidden aria-label="下载管理">
+          <div id="download-list" role="listbox" aria-label="下载任务" aria-multiselectable="true" tabindex="0"></div>
+        </aside>
         <div id="search-message" role="status"></div>
       </main>
       <footer><button id="log-toggle">LOG</button><strong id="status">输入关键词标签进行图片搜索、无关键词将直接搜索最新图片</strong><span id="site-status">当前站点：无</span><input id="size" type="range" min="72" max="512" value="192" aria-label="图片尺寸" /><button id="collect-toggle">收集箱</button></footer>
@@ -55,6 +57,51 @@
       <div id="preview-info"><img src="/assets/m-icon.ico" alt="" /><div><h2 id="preview-title"></h2><p id="metadata"></p></div></div>
       <div id="preview-canvas"><img id="large-image" alt="预览图" draggable="false" /><progress id="preview-loading" aria-label="图片加载进度"></progress><button id="preview-retry" hidden>重新加载</button></div>
       <div id="preview-tags"><span>Tags：</span><div id="tags"></div></div>
+    </div>
+    <div id="download-menu" class="floating" hidden role="menu">
+      <button data-download-action="reveal"><span class="menu-icon" aria-hidden="true"><i></i></span><span>打开文件位置</span></button>
+      <button data-download-action="all"><span class="menu-icon" aria-hidden="true"><i></i></span><span>全选(Ctrl+A)</span></button>
+      <button data-download-action="stop"><span class="menu-icon" aria-hidden="true"><i></i></span><span>停止</span></button>
+      <button data-download-action="remove"><span class="menu-icon" aria-hidden="true"><i></i></span><span>删除</span></button>
+      <button data-download-action="retry"><span class="menu-icon" aria-hidden="true"><i></i></span><span>重试</span></button>
+      <button data-download-action="export"><span class="menu-icon" aria-hidden="true"><i></i></span><span>导出未成功任务</span></button>
+      <button data-download-action="start-all"><span class="menu-icon" aria-hidden="true"><i></i><small>ALL</small></span><span>全部开始</span></button>
+      <button data-download-action="stop-all"><span class="menu-icon" aria-hidden="true"><i></i><small>ALL</small></span><span>全部停止</span></button>
+      <button data-download-action="clear"><span class="menu-icon" aria-hidden="true"><i></i><small>ALL</small></span><span>删除已完成任务</span></button>
+    </div>
+    <div id="settings-popup" class="floating" hidden aria-label="软件设置">
+      <div id="settings-scroll">
+        <fieldset><legend>自定义站点设置</legend><div class="settings-content"><button class="settings-wide" data-pending="自定义站点设置">打开自定义站点文件夹</button></div></fieldset>
+        <fieldset data-settings-pending="代理设置"><legend>代理设置</legend><div class="settings-content">
+          <label class="settings-line">全局代理设置<select id="global-proxy" aria-label="全局代理设置"><option>不使用代理</option><option>自定义</option><option>系统代理</option></select></label>
+          <label class="settings-line">自定义代理地址及端口<input value="127.0.0.1:1080" title="格式为 ip:端口" /></label>
+        </div></fieldset>
+        <fieldset data-settings-pending="搜索设置"><legend>搜索设置</legend><div class="settings-content">
+          <label class="settings-line">图片同时加载数量<input type="number" min="5" max="20" value="8" aria-label="图片同时加载数量" /></label>
+          <label class="settings-line">历史记录最大数量<input type="number" min="5" max="30" value="25" aria-label="历史记录最大数量" /></label>
+          <label class="settings-check viewed-setting"><input type="checkbox" />当前页不显示已浏览图片（仅缩略图展示，不影响翻页）</label>
+          <button class="settings-wide" data-pending="清除历史记录">清除历史记录</button>
+        </div></fieldset>
+        <fieldset id="download-settings"><legend>下载设置</legend><div class="settings-content">
+          <label class="settings-line download-concurrency">同时下载数量<input name="concurrency" type="number" min="1" max="15" aria-label="同时下载数量" required /></label>
+          <div class="settings-line first-count"><label class="settings-check"><input name="firstOnly" type="checkbox" />下载图组时只下载前 <span id="first-count-text">1</span> 张</label><input name="firstCount" type="number" min="1" max="99" aria-label="下载图组张数" required /></div>
+          <label class="settings-caption" for="save-directory">图片存储文件夹位置</label>
+          <div class="settings-path"><input id="save-directory" name="directory" readonly /><button id="download-directory" title="浏览" aria-label="浏览图片存储文件夹"><i aria-hidden="true">&#xf07c;</i></button></div>
+          <label class="settings-caption" for="folder-template">自定义图片保存子文件夹</label>
+          <div class="settings-path"><input id="folder-template" name="folderTemplate" maxlength="1000" title="例子：%site\%uploader 则将图片存在网站目录下建立作者文件夹；%site 则为存在站点文件夹下" /><button data-reset-template="folderTemplate" title="恢复默认" aria-label="恢复默认子文件夹格式"><i aria-hidden="true">&#xf3e5;</i></button></div>
+          <div class="rename-tokens" data-template="folderTemplate" hidden></div>
+          <label class="settings-caption" for="file-template">自定义文件命名格式（不带扩展名）</label>
+          <div class="settings-path"><input id="file-template" name="fileTemplate" maxlength="1000" /><button data-reset-template="fileTemplate" title="恢复默认" aria-label="恢复默认文件命名格式"><i aria-hidden="true">&#xf3e5;</i></button></div>
+          <div class="rename-tokens" data-template="fileTemplate" hidden></div>
+          <label class="settings-check rename-setting"><input name="autoRename" type="checkbox" />文件名相同时自动重命名（否则直接跳过）</label>
+          <label class="settings-line tag-count">标签命名数量限制（0为不限制）<input name="tagCount" type="number" min="0" max="100" aria-label="标签命名数量限制" required /></label>
+        </div></fieldset>
+        <fieldset data-settings-pending="软件外观设置"><legend>软件设置</legend><div class="settings-content">
+          <div class="settings-background"><label class="settings-check"><input type="checkbox" checked />显示软件背景图片</label><button data-pending="随机变换背景图片" title="随机变换" aria-label="随机变换背景图片"><i aria-hidden="true">&#xf2f1;</i></button><button data-pending="背景图片文件夹" title="打开背景图片文件夹" aria-label="打开背景图片文件夹"><i aria-hidden="true">&#xf07c;</i></button></div>
+          <label class="settings-check"><input id="acrylic-enabled" type="checkbox" checked />显示亚克力毛玻璃效果</label>
+          <label class="settings-check"><input type="checkbox" />低性能模式（去除动画等效果）</label>
+        </div></fieldset>
+      </div>
     </div>
     <div id="toast" role="status" hidden></div>
   </body>

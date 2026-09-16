@@ -1,7 +1,21 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Appearance, BrowserApi } from '../shared/types'
+import type { Appearance, BrowserApi, DownloadSnapshot } from '../shared/types'
 
 const api: BrowserApi = {
+  downloads: () => ipcRenderer.invoke('moe:downloads'),
+  onDownloads: callback => {
+    const listener = (_event: Electron.IpcRendererEvent, value: DownloadSnapshot) => callback(value)
+    ipcRenderer.on('moe:downloads-changed', listener)
+    return () => ipcRenderer.removeListener('moe:downloads-changed', listener)
+  },
+  enqueue: (keys, quality) => ipcRenderer.invoke('moe:enqueue', { keys, quality }),
+  downloadAction: (action, ids) => ipcRenderer.invoke('moe:download-action', { action, ids }),
+  downloadSettings: value => ipcRenderer.invoke('moe:download-settings', value),
+  downloadDirectory: () => ipcRenderer.invoke('moe:download-directory'),
+  revealDownload: id => ipcRenderer.invoke('moe:download-reveal', id),
+  exportDownloads: () => ipcRenderer.invoke('moe:download-export'),
+  importDownloads: text => ipcRenderer.invoke('moe:download-import', text),
+  setAcrylic: enabled => ipcRenderer.invoke('moe:set-acrylic', enabled),
   appearance: () => ipcRenderer.invoke('moe:appearance'),
   onAppearance: callback => {
     const listener = (_event: Electron.IpcRendererEvent, value: Appearance) => callback(value)
