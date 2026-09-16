@@ -54,7 +54,10 @@ export interface VisualPage {
   cursor?: string
 }
 export interface SearchSettings { loadConcurrency: number; historyLimit: number; hideViewed: boolean }
+export interface BackgroundImage { url: string; width: number; height: number; align: 'left' | 'center' | 'right' }
+export interface DisplaySettings { showBackground: boolean; lowPerformance: boolean }
 export interface BrowserState {
+  displaySettings: DisplaySettings
   searchSettings: SearchSettings
   siteCounts: Record<SiteId, number>
   acrylicEnabled: boolean
@@ -64,6 +67,10 @@ export interface BrowserState {
   bounds?: { x: number; y: number; width: number; height: number }
 }
 export interface BrowserApi {
+  setDisplaySettings(value: DisplaySettings): Promise<void>
+  background(): Promise<BackgroundImage | undefined>
+  changeBackground(): Promise<BackgroundImage | undefined>
+  openBackgroundDirectory(): Promise<void>
   setSearchSettings(value: SearchSettings): Promise<void>
   clearHistory(): Promise<void>
   network(): Promise<NetworkSnapshot>

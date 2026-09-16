@@ -1,4 +1,4 @@
-import type { Picture, SearchInput, VisualPage, SiteId } from '../../shared/types'
+import type { Picture, SearchInput, VisualPage, SiteId, BackgroundImage } from '../../shared/types'
 import { showPreview } from './preview'
 import { installControls } from './controls'
 import { installDownloads } from './downloads'
@@ -40,6 +40,39 @@ async function startBrowser(): Promise<void> {
   new ResizeObserver(fitPopup).observe(popup)
   window.addEventListener('resize', fitPopup)
   const input = (): SearchInput => ({ ...networkInput(), keyword: value('keyword'), page: Number(value('start-page')), count: Number(value('count')), filterResolution: checked('filter-resolution'), minWidth: Number(value('min-width')), minHeight: Number(value('min-height')), orientation: Number(value('orientation')) as 0 | 1 | 2 })
+
+  let backgroundImage: BackgroundImage | undefined
+  const backgroundLayer = $('background-layer'), background = $<HTMLImageElement>('background-image')
+  const applyBackground = (image: BackgroundImage | undefined): void => {
+    backgroundImage = image
+    backgroundLayer.hidden = !settings.displaySettings.showBackground || !image
+    if (!image) { background.removeAttribute('src'); return }
+    backgroundLayer.style.justifyContent = image.align === 'left' ? 'flex-start' : image.align === 'right' ? 'flex-end' : 'center'
+    background.style.width = `${image.width}px`; background.style.height = `${image.height}px`
+    if (background.getAttribute('src') !== image.url) background.src = image.url
+  }
+  background.onerror = () => { backgroundLayer.hidden = true; message('背景图片加载失败') }
+  const displayFields = ['show-background', 'low-performance'].map(id => $<HTMLInputElement>(id))
+  const applyDisplay = (): void => {
+    displayFields[0].checked = settings.displaySettings.showBackground; displayFields[1].checked = settings.displaySettings.lowPerformance
+    document.documentElement.dataset.lowPerformance = String(settings.displaySettings.lowPerformance)
+    applyBackground(backgroundImage)
+    for (const card of cards.values()) paintBackdrop(card)
+  }
+  applyDisplay()
+  void window.moe.background().then(applyBackground).catch(failure)
+  for (const field of displayFields) field.onchange = () => {
+    const next = { showBackground: displayFields[0].checked, lowPerformance: displayFields[1].checked }
+    displayFields.forEach(field => { field.disabled = true })
+    void window.moe.setDisplaySettings(next).then(() => { settings.displaySettings = next; applyDisplay() })
+      .catch(error => { applyDisplay(); failure(error) }).finally(() => { displayFields.forEach(field => { field.disabled = false }) })
+  }
+  $<HTMLButtonElement>('change-background').onclick = () => {
+    const button = $<HTMLButtonElement>('change-background'); button.disabled = true
+    void window.moe.changeBackground().then(image => { applyBackground(image); if (!image) message('背景图片文件夹内没有可用的 PNG 图片') })
+      .catch(failure).finally(() => { button.disabled = false })
+  }
+  $('background-directory').onclick = () => { void window.moe.openBackgroundDirectory().catch(failure) }
 
   const searchFields = ['load-concurrency', 'history-limit', 'hide-viewed'].map(id => $<HTMLInputElement>(id))
   const restoreSearchSettings = (): void => {
@@ -92,16 +125,20 @@ async function startBrowser(): Promise<void> {
     }
     selection()
   }
+  function paintBackdrop(card: HTMLElement): void {
+    const image = card.querySelector<HTMLImageElement>('img')!, canvas = card.querySelector<HTMLCanvasElement>('canvas')!
+    if (settings.displaySettings.lowPerformance || !image.complete || !image.naturalWidth || !image.naturalHeight) { canvas.width = canvas.height = 0; return }
+    canvas.width = card.clientWidth; canvas.height = card.clientHeight
+    const scale = Math.max(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight)
+    canvas.getContext('2d')?.drawImage(image, (canvas.width - image.naturalWidth * scale) / 2, (canvas.height - image.naturalHeight * scale) / 2, image.naturalWidth * scale, image.naturalHeight * scale)
+  }
   async function loadOne(card: HTMLElement, item: Picture): Promise<void> {
     const image = card.querySelector<HTMLImageElement>('img')!
     if (card.classList.contains('loading')) return Promise.resolve()
     card.classList.remove('loaded', 'failed', 'detail-failed'); card.classList.add('loading'); card.querySelector('.image-status')!.textContent = '\uf110'
     const thumbnail = new Promise<void>(resolve => {
       image.onload = () => {
-        const canvas = card.querySelector<HTMLCanvasElement>('canvas')!
-        canvas.width = card.clientWidth; canvas.height = card.clientHeight
-        const scale = Math.max(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight)
-        canvas.getContext('2d')?.drawImage(image, (canvas.width - image.naturalWidth * scale) / 2, (canvas.height - image.naturalHeight * scale) / 2, image.naturalWidth * scale, image.naturalHeight * scale)
+        paintBackdrop(card)
         card.classList.add('loaded'); resolve()
       }
       image.onerror = () => { card.classList.add('failed'); card.querySelector('.image-status')!.textContent = '\uf127'; resolve() }

@@ -11,6 +11,7 @@
   <body>
     <div id="window-titlebar"><span id="window-title">MoeLoaderE</span></div>
     <div id="browser">
+      <div id="background-layer" aria-hidden="true" hidden><img id="background-image" alt="" /></div>
       <header>
         <button id="logo" title="MoeLoader"><img src="/assets/banner.png" alt="MoeLoader +1s" /></button>
         <nav><button id="settings-toggle" aria-expanded="false" aria-controls="settings-popup"><i></i>软件设置</button><span>|</span><button id="download-toggle"><i></i>下载管理</button><span>|</span><button data-pending="关于/捐助"><i></i>关于/捐助</button></nav>
@@ -98,10 +99,10 @@
           <label class="settings-check rename-setting"><input name="autoRename" type="checkbox" />文件名相同时自动重命名（否则直接跳过）</label>
           <label class="settings-line tag-count">标签命名数量限制（0为不限制）<input name="tagCount" type="number" min="0" max="100" aria-label="标签命名数量限制" required /></label>
         </div></fieldset>
-        <fieldset data-settings-pending="软件外观设置"><legend>软件设置</legend><div class="settings-content">
-          <div class="settings-background"><label class="settings-check"><input type="checkbox" checked />显示软件背景图片</label><button data-pending="随机变换背景图片" title="随机变换" aria-label="随机变换背景图片"><i aria-hidden="true">&#xf2f1;</i></button><button data-pending="背景图片文件夹" title="打开背景图片文件夹" aria-label="打开背景图片文件夹"><i aria-hidden="true">&#xf07c;</i></button></div>
+        <fieldset id="display-settings"><legend>软件设置</legend><div class="settings-content">
+          <div class="settings-background"><label class="settings-check"><input id="show-background" type="checkbox" checked />显示软件背景图片</label><button id="change-background" title="随机变换" aria-label="随机变换背景图片"><i aria-hidden="true">&#xf2f1;</i></button><button id="background-directory" title="打开背景图片文件夹" aria-label="打开背景图片文件夹"><i aria-hidden="true">&#xf07c;</i></button></div>
           <label class="settings-check"><input id="acrylic-enabled" type="checkbox" checked />显示亚克力毛玻璃效果</label>
-          <label class="settings-check"><input type="checkbox" />低性能模式（去除动画等效果）</label>
+          <label class="settings-check"><input id="low-performance" type="checkbox" />低性能模式（去除动画等效果）</label>
         </div></fieldset>
       </div>
     </div>

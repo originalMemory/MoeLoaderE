@@ -4,7 +4,7 @@
 
 - 技术路线：Electron + TypeScript。
 - 初始目标：Windows、macOS 桌面端；Linux 暂不考虑，移动端和浏览器版未纳入。
-- 当前状态：阶段 4 已提交推送，Pixiv 真实账号验收留到 Windows。阶段 5 已接通搜索设置与历史记录，新增 Safebooru 搜索/预览/下载已通过真实联网验证，完整测试 26/26 通过；其他站点、自定义站点及剩余外观设置继续分批迁移。
+- 当前状态：阶段 4 已提交推送，Pixiv 真实账号验收留到 Windows。阶段 5 已接通搜索设置与历史记录，新增 Safebooru 搜索/预览/下载已通过真实联网验证，背景图/低性能模式已接通，完整测试 27/27 通过；其他站点、自定义站点继续分批迁移。
 - 迁移原则：逻辑、UI 布局、样式、文案与交互保持源项目一致，差异逐项记录，不默默改变行为。
 
 ## 本地开发
@@ -59,6 +59,7 @@ Windows 材质通过 Koffi 在主进程调用窗口合成接口，使用原版 F
 - [第四阶段登录、会话与代理验收](openspec/changes/port-session-auth/review.md)
 - [第五阶段第一批：搜索设置与历史](openspec/changes/port-search-settings/review.md)
 - [第五阶段第二批：Safebooru](openspec/changes/port-safebooru/review.md)
+- [第五阶段第三批：背景图与低性能模式](openspec/changes/port-display-settings/review.md)
 
 ## 登录与代理
 

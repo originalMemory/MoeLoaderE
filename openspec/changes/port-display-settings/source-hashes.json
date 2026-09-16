@@ -1,0 +1,8 @@
+{
+  "MoeLoaderP.Core/Settings.cs": "83b991e4fb2811467424051a8c7e50b48a85dcd4184c751490f8ccbcb6b37c10",
+  "MoeLoaderP.Wpf/App.xaml.cs": "ddb04980d2646e4d4edaa1f84311a389318795b014ffb07e147149ad450e4f1e",
+  "MoeLoaderP.Wpf/MainWindow.xaml": "e395e03971522716d99e490c095504ef4ce5ac7e9a7f89e41838615dfeeca646",
+  "MoeLoaderP.Wpf/UiUtility.cs": "9cd1d80b345e21aa659ee23daeef54a64212e246a9491e68d9ed572cabdeb841",
+  "MoeLoaderP.Wpf/ControlParts/SettingsControl.xaml.cs": "e58abe6494ae1c03953627781e0984826afe767dd479de1d4890576a76823cdd",
+  "MoeLoaderP.Wpf/ControlParts/MoeItemControl.xaml.cs": "566df62929d1a4ace75bf98d76ce02b80c6f3412f4260bedd9dd2005751639da"
+}

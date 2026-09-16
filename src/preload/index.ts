@@ -2,6 +2,10 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { Appearance, BrowserApi, DownloadSnapshot, NetworkSnapshot } from '../shared/types'
 
 const api: BrowserApi = {
+  setDisplaySettings: value => ipcRenderer.invoke('moe:display-settings', value),
+  background: () => ipcRenderer.invoke('moe:background'),
+  changeBackground: () => ipcRenderer.invoke('moe:change-background'),
+  openBackgroundDirectory: () => ipcRenderer.invoke('moe:background-directory'),
   setSearchSettings: value => ipcRenderer.invoke('moe:search-settings', value),
   clearHistory: () => ipcRenderer.invoke('moe:clear-history'),
   network: () => ipcRenderer.invoke('moe:network'),

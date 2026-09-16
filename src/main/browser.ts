@@ -16,6 +16,7 @@ import { installLogin } from './login'
 import { allowedSiteUrl, siteForUrl, sites, validSite } from '../shared/network'
 import { pixivVisualPage, resolvePixiv } from '../shared/pixiv'
 import { parseSafebooruXml } from '../shared/safebooru'
+import { BackgroundImages } from './background'
 import { restoreSearchSettings, validateSearchSettings } from '../shared/search-settings'
 
 export function isSiteUrl(value: string): boolean {
@@ -47,7 +48,7 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
   const siteResponse = (url: string, signal: AbortSignal, referer?: string, retry = true): Promise<Response> => network.request(url, signal, referer, retry)
   const settingsPath = join(app.getPath('userData'), 'browser.json')
   const saved = existsSync(settingsPath) ? JSON.parse(readFileSync(settingsPath, 'utf8')) : {}
-  const state: BrowserState = { searchSettings: restoreSearchSettings(saved.searchSettings), siteCounts: { 'konachan-g': 60, pixiv: 60, safebooru: 60 }, count: 60, size: 192, history: [], acrylicEnabled: typeof saved.acrylicEnabled === 'boolean' ? saved.acrylicEnabled : true }
+  const state: BrowserState = { displaySettings: { showBackground: typeof saved.displaySettings?.showBackground === 'boolean' ? saved.displaySettings.showBackground : true, lowPerformance: typeof saved.displaySettings?.lowPerformance === 'boolean' ? saved.displaySettings.lowPerformance : false }, searchSettings: restoreSearchSettings(saved.searchSettings), siteCounts: { 'konachan-g': 60, pixiv: 60, safebooru: 60 }, count: 60, size: 192, history: [], acrylicEnabled: typeof saved.acrylicEnabled === 'boolean' ? saved.acrylicEnabled : true }
   setAcrylicEnabled(state.acrylicEnabled)
   if (saved.bounds && ['x', 'y', 'width', 'height'].every(key => Number.isFinite(saved.bounds[key])) && saved.bounds.width >= 700 && saved.bounds.height >= 400) state.bounds = saved.bounds
   if (Number.isInteger(saved.count) && saved.count >= 10 && saved.count <= 500) state.count = saved.count
@@ -205,6 +206,16 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
     for (const source of sources) { try { queue.add([source]); added++ } catch (error) { errors.push(String(error)) } }
     return { added, errors }
   })
+  const backgrounds = new BackgroundImages(join(app.getPath('userData'), 'Background'))
+  handle('background', () => backgrounds.get())
+  handle('change-background', () => backgrounds.change())
+  handle('background-directory', () => backgrounds.openDirectory())
+  handle('display-settings', (_event, value) => {
+    if (!value || typeof value.showBackground !== 'boolean' || typeof value.lowPerformance !== 'boolean') throw new Error('外观设置无效')
+    const previous = state.displaySettings
+    state.displaySettings = { showBackground: value.showBackground, lowPerformance: value.lowPerformance }
+    try { save() } catch (error) { state.displaySettings = previous; throw error }
+  })
   handle('init', () => state)
   handle('search-settings', (_event, value) => {
     const next = validateSearchSettings(value), previous = state.searchSettings
@@ -308,6 +319,7 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
   protocol.handle('moe-image', async request => {
     try {
       const url = new URL(request.url)
+      if (url.hostname === 'background') return backgrounds.response(request)
       const match = /^\/(\d+-\d+-\d+)\/(thumbnail|preview)$/.exec(url.pathname)
       if (url.hostname !== 'picture' || !match || request.method !== 'GET') return new Response(null, { status: 400 })
       const key = match[1], kind = match[2] as 'thumbnail' | 'preview'
