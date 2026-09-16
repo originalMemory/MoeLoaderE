@@ -1,3 +1,4 @@
+import { allowedSiteUrl, validSite, sites } from '../shared/network.ts'
 import type { DownloadSource, DownloadTask } from '../shared/types'
 export const bundleSchema = 'MoeLoaderP.UnfinishedDownloadTasks'
 export interface BundleTask { siteShortName: string; downloadUrl: string; referer?: string; detailUrl?: string; id: string; title?: string; localFileShortNameWithoutExt?: string; dlStatusAtExport?: string }
@@ -18,9 +19,11 @@ export function parseBundle(text: string): DownloadBundle {
 export function importSources(bundle: DownloadBundle, allowed: (url: string) => boolean): { sources: DownloadSource[]; errors: string[] } {
   const sources: DownloadSource[] = [], errors: string[] = []
   for (const [i, task] of bundle.tasks.entries()) {
-    const url = task.downloadUrl?.trim() || '', referer = task.referer || 'https://konachan.net'
-    if (task.siteShortName?.trim() !== 'konachan-g' || !allowed(url) || !allowed(referer)) { errors.push(`任务 ${i + 1}：站点或资源地址不受支持`); continue }
-    sources.push({ id: task.id || '', url, referer, detail: task.detailUrl || '', title: task.title ?? '', keyword: '', tags: [], name: task.localFileShortNameWithoutExt })
+    const site = task.siteShortName?.trim()
+    if (!validSite(site)) { errors.push(`任务 ${i + 1}：站点不受支持`); continue }
+    const url = task.downloadUrl?.trim() || '', referer = task.referer || sites[site].home
+    if (!allowed(url) || !allowed(referer) || !allowedSiteUrl(url, site) || !allowedSiteUrl(referer, site)) { errors.push(`任务 ${i + 1}：资源地址不受支持`); continue }
+    sources.push({ site, id: task.id || '', url, referer, detail: task.detailUrl || '', title: task.title ?? '', keyword: '', tags: [], name: task.localFileShortNameWithoutExt })
   }
   return { sources, errors }
 }
@@ -31,10 +34,10 @@ export function exportBundle(tasks: DownloadTask[], existing?: DownloadBundle): 
   const append = (task: DownloadTask): void => {
     if (task.status === 'success' || task.status === 'skip') return
     if (task.children?.length) { task.children.forEach(append); return }
-    const s = task.source, key = `konachan-g\0${s.url}`
+    const s = task.source, site = s.site ?? 'konachan-g', key = `${site}\0${s.url}`
     if (keys.has(key)) return
     keys.add(key)
-    bundle.tasks.push({ siteShortName: 'konachan-g', downloadUrl: s.url, referer: s.referer, detailUrl: s.detail, id: String(s.id), title: s.title,
+    bundle.tasks.push({ siteShortName: site, downloadUrl: s.url, referer: s.referer, detailUrl: s.detail, id: String(s.id), title: s.title,
       localFileShortNameWithoutExt: task.name.replace(/\.[^.]+$/, ''), dlStatusAtExport: statuses[task.status] })
   }
   tasks.forEach(append); bundle.exportedAt = new Date().toISOString()

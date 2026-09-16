@@ -20,7 +20,7 @@ test('单站点搜索、选择、分页、预览与 IPC 验收', { timeout: 40_0
     const pixels = Buffer.alloc(640 * 360 * 4, 180)
     for (let i = 3; i < pixels.length; i += 4) pixels[i] = 255
     const png = nativeImage.createFromBitmap(pixels, { width: 640, height: 360 }).toPNG()
-    session.defaultSession.protocol.handle('https', async request => {
+    session.fromPartition('persist:moe-site-konachan-g').protocol.handle('https', async request => {
       const url = new URL(request.url); globalThis.queries.push(request.url)
       if (url.pathname === '/tag.json') return new Response(JSON.stringify([{ name: 'landscape', count: 15 }]))
       if (url.pathname === '/post.json') {

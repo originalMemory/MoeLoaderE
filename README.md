@@ -4,7 +4,7 @@
 
 - 技术路线：Electron + TypeScript。
 - 初始目标：Windows、macOS 桌面端；Linux 暂不考虑，移动端和浏览器版未纳入。
-- 当前状态：阶段 3 下载主体已实现并通过 Mac 验证，待 review；包含队列、命名、停止重试、任务包和安全落盘。登录与其他站点尚未迁移。
+- 当前状态：阶段 4 登录、Cookie、代理及 Pixiv 静态浏览/下载已实现，样本测试通过；阶段 review 的 3 项问题已修复，真实 Pixiv 账号验收待完成。动图转换、镜像及其他站点留待后续。
 - 迁移原则：逻辑、UI 布局、样式、文案与交互保持源项目一致，差异逐项记录，不默默改变行为。
 
 ## 本地开发
@@ -34,11 +34,11 @@ npx --no install-electron
 | `npm test` | 构建并运行真实 Electron 窗口检查，需要桌面会话；无需额外安装 Playwright 浏览器 |
 | `npm run test:online` | 独立的真实站点检查：搜索 10 张图片，验证缩略图、预览与单张真实下载；需要网络 |
 
-默认测试使用本地响应，覆盖浏览、下载实际文件/同名竞争/取消重试/组图、任务包、IPC 边界与启动回归；在线检查单独运行，下载文件使用独立临时目录并在测试后清理。截图写入忽略目录 `artifacts/`。macOS 启动生命周期、浏览和 Command 快捷键已在实机验证；安装包尚未验收。
+默认测试使用本地响应，覆盖浏览、下载实际文件/同名竞争/取消重试/组图、任务包、IPC 边界与启动回归；在线检查单独运行，下载文件使用独立临时目录并在测试后清理。截图写入忽略目录 `artifacts/`。macOS 启动生命周期、浏览、下载、代理与登录隔离已验证；真实 Pixiv 账号和安装包尚未验收。
 
 ## 工程结构
 
-- `src/main/`：窗口、站点网络、资源协议、状态保存与 IPC 验证。
+- `src/main/`：窗口、站点隔离会话、登录、代理、下载、资源协议、状态保存与 IPC 验证。
 - `src/preload/`：有限的浏览 API，不向页面暴露 Node 或通用 IPC。
 - `src/shared/`：类型与源业务逻辑转写。
 - `src/renderer/`：原版布局的 HTML/CSS/TypeScript 实现与独立预览。
@@ -56,6 +56,16 @@ Windows 材质通过 Koffi 在主进程调用窗口合成接口，使用原版 F
 - [第二阶段实施任务](openspec/changes/port-booru-browser/tasks.md)
 - [第二阶段 review 与差异](openspec/changes/port-booru-browser/review.md)
 - [第三阶段下载主体与验证](openspec/changes/port-download-queue/review.md)
+- [第四阶段登录、会话与代理验收](openspec/changes/port-session-auth/review.md)
+
+## 登录与代理
+
+- 代理仍在原“软件设置”和搜索参数中配置；单站点设置覆盖全局，默认继承。需要本机系统代理时，在“全局代理设置”选择“系统代理”。
+- 自定义地址为 `host:port`（HTTP），也支持显式 `socks5://host:port`；不支持在地址内保存账号密码。
+- 选择 Pixiv 后点击原账号按钮打开网页登录；完成后点击右侧验证按钮。右键账号按钮清除该站点登录信息。
+- 登录 Cookie 由 Chromium 站点会话持久化，不写入 browser.json/network.json；远程登录页不暴露应用 API。
+- Pixiv 当前支持静态最新/标签、作者、排行及组图。动图转换、镜像、其他身份提供方/通行密钥尚未完成验收。
+- 本机直连访问失败，系统代理下 Konachan-G 与 Pixiv 匿名登录页可访问。在线回归可用 `MOE_ONLINE_PROXY_MODE=system npm run test:online`；默认 none，不会暗中回落或切换代理。
 
 每阶段完成后停下来 review，经确认再进入下一阶段。
 

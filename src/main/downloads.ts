@@ -27,7 +27,7 @@ export function filePath(source: DownloadSource, settings: DownloadSettings, ind
   const extension = extname(original).toLowerCase()
   if (!/^\.[a-z0-9]{1,4}$/.test(extension)) throw new Error('下载地址缺少有效文件扩展名')
   const tokens: Record<string, string> = {
-    site: 'konachan-g', sitedispname: 'Konachan-G', id: String(parent.id), keyword: parent.keyword || 'no-keyword',
+    site: parent.site ?? 'konachan-g', sitedispname: parent.site === 'pixiv' ? 'Pixiv' : 'Konachan-G', id: String(parent.id), keyword: parent.keyword || 'no-keyword',
     title: parent.title ?? 'no-title', uploader: parent.author ?? 'no-uploader', upid: parent.authorId ?? 'no-uploader-id',
     uploader_id: parent.authorId ?? 'no-uploader-id', date: parent.date ?? 'no-date',
     origin: original.slice(0, -extension.length), tag: (settings.tagCount ? parent.tags.slice(0, settings.tagCount) : parent.tags).map(t => `${t} `).join(''),

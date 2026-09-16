@@ -32,11 +32,13 @@
 | 1 | Electron 工程、最小窗口、开发与构建命令 | 已完成，review 问题已修复 | [spec](../specs/speclite/electron-bootstrap/spec.md)；Windows 运行及启动失败退出码验证通过，macOS 未实测 |
 | 2 | 对照源主界面、搜索与预览 UI，接通单个 Booru 站点 | 已完成，review 问题已修复 | [验收记录](../openspec/changes/port-booru-browser/review.md)；22/22，6 项测试及在线验证通过 |
 | 3 | 下载队列、取消重试、命名、组图与临时文件 | 已完成，review 修复已验收 | [验收记录](../openspec/changes/port-download-queue/review.md)；Mac 15 项测试与真实下载通过；整体 review 的 4 项问题已修复；下载 UI 已按源 XAML 对齐，组图使用引擎/界面样本验证 |
-| 4 | 登录、Cookie、代理与需登录站点 | 未开始 | 未验证 |
+| 4 | 登录、Cookie、代理与需登录站点 | 已实现，review 问题已修复，真实账号验收留待 Windows | [验收记录](../openspec/changes/port-session-auth/review.md)；21 项测试通过，真实登录页/系统代理已验证，账号操作尚未验证 |
 | 5 | 其他站点、自定义站点、设置与历史记录 | 未开始 | 未验证 |
 | 6 | Windows/macOS 打包与发布验证 | 未开始 | 未验证 |
 
 登录技术验证在批量扩展站点前完成；若它影响网络结构，可提前到阶段 2 后执行。
+
+- 2026-09-16 用户授权提交推送阶段 4 并继续阶段 5；Pixiv 真实账号登录、重启 Cookie 与下载验收留到 Windows，不阻塞后续主体迁移。
 
 ## 跟踪规则
 
@@ -60,6 +62,6 @@
 | 平台 | 开发运行 | 打包运行 | 登录与代理 | 搜索与下载 |
 | --- | --- | --- | --- | --- |
 | Windows | 已验证（阶段 2） | 未验证（生产构建运行已通过，尚未生成安装包） | 未验证 | 搜索与预览已验证；阶段 3 下载未在 Windows 实测 |
-| macOS | 已验证（arm64，阶段 3；含 Command 快捷键） | 未验证 | 未验证 | 搜索、预览与下载已验证 |
+| macOS | 已验证（arm64，阶段 4；含 Command 快捷键） | 未验证 | 代理及登录样本已验证；真实账号待验 | Konachan-G 在线通过；Pixiv 静态流程样本通过 |
 
 - Mac 毛玻璃对照优化：保留系统材质、减少重复染色，开关和系统透明度限制已接通；见 [检查与实现记录](../openspec/changes/port-download-queue/mac-acrylic.md)。

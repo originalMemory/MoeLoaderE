@@ -1,9 +1,11 @@
 import { defineConfig } from 'electron-vite'
+import { resolve } from 'node:path'
 
 export default defineConfig(({ command }) => ({
   main: {},
-  preload: {},
+  preload: { build: { rollupOptions: { input: { index: resolve('src/preload/index.ts'), login: resolve('src/preload/login.ts') } } } },
   renderer: {
+    build: { rollupOptions: { input: { index: resolve('src/renderer/index.html'), login: resolve('src/renderer/login.html') } } },
     plugins: [{
       name: 'renderer-csp',
       transformIndexHtml: (html) => html.replace(

@@ -39,6 +39,7 @@ nav button { padding: 0 2px; border: 0; background: none; text-decoration: under
 #keyword-area { position: relative; }
 #keyword { width: 168px; height: 34px; padding: 0 4px 0 10px; border: 1px solid #808080; border-radius: 5px; background: linear-gradient(#f1f1f1,#fff); }
 #parameters-toggle { position: absolute; right: 2px; top: 5px; height: 24px; width: 22px; padding: 0; border: 0; opacity: 0; }
+#parameters-toggle span { display:none; }
 #keyword-area:hover #parameters-toggle, #keyword-area:focus-within #parameters-toggle { opacity: 1; }
 #search { width: 68px; font-size: 14px; white-space: nowrap; }
 #search i { margin-right: 3px; }
@@ -246,3 +247,33 @@ footer button { color: black; height: 22px; padding: 1px 4px; }
 
 .downloads-open:not(.has-search) #search-form { left: calc(50% - 110px); }
 #settings-toggle[aria-expanded=true], .downloads-open #download-toggle { background: #3591ff5a; }
+#account { width:34px; height:34px; flex-shrink:0; position:relative; padding:0; }
+#account > i:first-child { font-size:20px; margin-right:5px; }
+.account-key { position:absolute; right:2px; top:3px; color:#0034ff; text-shadow:0 0 4px white; }
+.account-check { position:absolute; right:1px; bottom:1px; color:#00b41f; font-size:14px; font-weight:bold; }
+#pixiv-controls { display:flex; gap:4px; height:34px; flex-shrink:0; }
+#pixiv-controls .select-control { width:72px; height:34px; }
+#pixiv-date { width:128px; height:34px; border:1px solid #707070; border-radius:5px; background:white; padding-left:4px; }
+body[data-site=pixiv] #search-form { width:594px; }
+body[data-site=pixiv].pixiv-rank #search-form { width:794px; }
+body.pixiv-rank #keyword, body.pixiv-rank #hint-spinner, body.pixiv-rank #hints, body.pixiv-rank #hint-status { display:none; }
+body.pixiv-rank #keyword-area { width:160px; flex-shrink:0; }
+body.pixiv-rank #parameters-toggle { position:static; width:160px; height:34px; opacity:1; border:1px solid #808080; font-size:14px; }
+body.pixiv-rank #parameters-toggle span { display:inline; margin-left:4px; }
+body.pixiv-rank #search-popup { grid-template-columns:max-content; }
+body.pixiv-rank .parameter-fields { grid-column:1; }
+body[data-site=pixiv] [data-select=site] .select-toggle { background-image:url('/assets/pixiv.ico'),linear-gradient(#f1f1f1,#fff); }
+.card-top { position:absolute; top:4px; left:4px; display:flex; flex-direction:column; align-items:flex-start; gap:4px; pointer-events:none; transition:transform .6s cubic-bezier(.215,.61,.355,1); }
+.top-numbers { display:flex; gap:4px; }
+.card-top .badge { position:static; }
+.card-top .score { transform:none!important; }
+.card-top i { font-size:9px; }
+.picture:hover .card-top { transform:translateY(28px); }
+.card-top .image-tip { font-size:12px; }
+.image-tip.highlight { color:hotpink; }
+.image-rank { position:absolute; width:80px; height:80px; top:-40px; right:-40px; pointer-events:none; }
+.image-rank::before { content:''; position:absolute; inset:-8px; border-radius:50%; background:radial-gradient(#8fe8ffcc 59.9%,transparent); }
+.image-rank b { position:absolute; left:25.5px; top:58px; transform:translate(-50%,-50%); font-size:16px; }
+.picture[data-site=pixiv] .image-id { display:flex; align-items:center; justify-content:center; padding:0 3px; overflow:hidden; line-height:14px; }
+.picture.detail-failed .operations button:first-child { display:block; }
+.operations button:disabled { opacity:.5; }

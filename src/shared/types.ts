@@ -1,4 +1,9 @@
 export interface SearchInput {
+  site?: SiteId
+  pixivMode?: 'rank' | 'tag' | 'author'
+  pixivKind?: 'all' | 'illust' | 'manga' | 'ugoira'
+  pixivPeriod?: 'daily' | 'weekly' | 'monthly' | 'rookie' | 'original' | 'male' | 'female'
+  pixivDate?: string
   keyword: string
   page: number
   count: number
@@ -8,6 +13,15 @@ export interface SearchInput {
   orientation: 0 | 1 | 2
 }
 export interface Picture {
+  site?: SiteId
+  title?: string
+  keyword?: string
+  unsupported?: string
+  pageCount?: number
+  rank?: number
+  tip?: string
+  tipHighlight?: boolean
+  pages?: { original: string; preview: string }[]
   /** Assigned by the main process per result entry; the site's ID can repeat. */
   key: string
   id: number
@@ -36,8 +50,10 @@ export interface VisualPage {
   items: Picture[]
   realPages: { page: number; count: number; output: number; start: number; end: number }[]
   error?: string
+  cursor?: string
 }
 export interface BrowserState {
+  siteCounts: Record<SiteId, number>
   acrylicEnabled: boolean
   count: number
   size: number
@@ -45,6 +61,12 @@ export interface BrowserState {
   bounds?: { x: number; y: number; width: number; height: number }
 }
 export interface BrowserApi {
+  network(): Promise<NetworkSnapshot>
+  setNetwork(value: NetworkSettings): Promise<void>
+  onNetwork(callback: (value: NetworkSnapshot) => void): () => void
+  login(site: SiteId): Promise<void>
+  logout(site: SiteId): Promise<void>
+  detail(key: string): Promise<Picture>
   downloads(): Promise<DownloadSnapshot>
   onDownloads(callback: (value: DownloadSnapshot) => void): () => void
   enqueue(keys: string[], quality: string): Promise<number>
@@ -61,14 +83,14 @@ export interface BrowserApi {
   search(input: SearchInput): Promise<VisualPage>
   next(): Promise<VisualPage>
   cancel(): Promise<void>
-  hints(keyword: string): Promise<{ word: string; count: string }[]>
+  hints(keyword: string, site?: SiteId): Promise<{ word: string; count: string }[]>
   preview(key: string): Promise<void>
   previewItem(): Promise<Picture>
   onImageProgress(callback: (progress: { key: string; loaded: number; total: number }) => void): () => void
   copy(text: string): Promise<void>
   open(key: string): Promise<void>
   size(value: number): Promise<void>
-  count(value: number): Promise<void>
+  count(value: number, site?: SiteId): Promise<void>
 }
 export interface Appearance { acrylicEnabled: boolean; reducedTransparency: boolean; dark: boolean; active: boolean; nativeBlur: boolean; platform: string }
 declare global { interface Window { moe: BrowserApi } }
@@ -86,6 +108,7 @@ export interface DownloadSettings {
   firstCount: number
 }
 export interface DownloadSource {
+  site?: SiteId
   id: string | number
   url: string
   referer: string
@@ -117,3 +140,9 @@ export interface DownloadTask {
   children?: DownloadTask[]
 }
 export interface DownloadSnapshot { settings: DownloadSettings; tasks: DownloadTask[] }
+
+export type SiteId = 'konachan-g' | 'pixiv'
+export type ProxyMode = 'none' | 'custom' | 'system'
+export interface NetworkSettings { globalMode: ProxyMode; proxyAddress: string; siteModes: Record<SiteId, ProxyMode | 'default'> }
+export interface NetworkSnapshot { settings: NetworkSettings; loggedIn: Record<SiteId, boolean> }
+export interface LoginStatus { site: SiteId; state: 'idle' | 'verifying' | 'failed' | 'success'; text: string }

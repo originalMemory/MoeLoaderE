@@ -2,6 +2,8 @@ import type { Picture, SearchInput, VisualPage } from '../../shared/types'
 import { showPreview } from './preview'
 import { installControls } from './controls'
 import { installDownloads } from './downloads'
+import { installNetworkUi } from './network'
+import { sites } from '../../shared/network'
 
 installControls()
 
@@ -24,19 +26,20 @@ function button(label: string, action: () => void, title?: string): HTMLButtonEl
 
 async function startBrowser(): Promise<void> {
   const settings = await window.moe.init()
+  const networkInput = installNetworkUi(text => message(text), settings.siteCounts)
   const enqueue = await installDownloads(text => message(text))
   $<HTMLInputElement>('count').value = String(settings.count)
   $<HTMLInputElement>('size').value = String(settings.size)
   document.documentElement.style.setProperty('--picture-size', `${settings.size}px`)
   let pages: VisualPage[] = [], currentPage: VisualPage | undefined, visible: Picture[] = [], anchor = -1, busy = false, epoch = 0, hintEpoch = 0
-  let activeKeyword = ''
+  let activeKeyword = '', activeSite: 'konachan-g' | 'pixiv' = 'konachan-g'
   const selected = new Set<string>()
   const cards = new Map<string, HTMLElement>()
   const popup = $('search-popup'), menu = $('context-menu')
   const fitPopup = (): void => { if (popup.hidden) return; popup.style.left = '0'; const r = popup.getBoundingClientRect(); if (r.right > innerWidth - 10) popup.style.left = `${innerWidth - 10 - r.right}px` }
   new ResizeObserver(fitPopup).observe(popup)
   window.addEventListener('resize', fitPopup)
-  const input = (): SearchInput => ({ keyword: value('keyword'), page: Number(value('start-page')), count: Number(value('count')), filterResolution: checked('filter-resolution'), minWidth: Number(value('min-width')), minHeight: Number(value('min-height')), orientation: Number(value('orientation')) as 0 | 1 | 2 })
+  const input = (): SearchInput => ({ ...networkInput(), keyword: value('keyword'), page: Number(value('start-page')), count: Number(value('count')), filterResolution: checked('filter-resolution'), minWidth: Number(value('min-width')), minHeight: Number(value('min-height')), orientation: Number(value('orientation')) as 0 | 1 | 2 })
 
   function selection(): void {
     for (const [key, card] of cards) { card.classList.toggle('selected', selected.has(key)); card.querySelector<HTMLInputElement>('input')!.checked = selected.has(key) }
@@ -62,29 +65,39 @@ async function startBrowser(): Promise<void> {
     }
     selection()
   }
-  function load(card: HTMLElement, item: Picture): Promise<void> {
+  async function load(card: HTMLElement, item: Picture): Promise<void> {
     const image = card.querySelector<HTMLImageElement>('img')!
     if (card.classList.contains('loading')) return Promise.resolve()
-    card.classList.remove('loaded', 'failed'); card.classList.add('loading'); card.querySelector('.image-status')!.textContent = '\uf110'
-    return new Promise(resolve => {
+    card.classList.remove('loaded', 'failed', 'detail-failed'); card.classList.add('loading'); card.querySelector('.image-status')!.textContent = '\uf110'
+    const thumbnail = new Promise<void>(resolve => {
       image.onload = () => {
         const canvas = card.querySelector<HTMLCanvasElement>('canvas')!
         canvas.width = card.clientWidth; canvas.height = card.clientHeight
         const scale = Math.max(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight)
         canvas.getContext('2d')?.drawImage(image, (canvas.width - image.naturalWidth * scale) / 2, (canvas.height - image.naturalHeight * scale) / 2, image.naturalWidth * scale, image.naturalHeight * scale)
-        card.classList.remove('loading'); card.classList.add('loaded'); resolve()
+        card.classList.add('loaded'); resolve()
       }
-      image.onerror = () => { card.classList.remove('loading'); card.classList.add('failed'); card.querySelector('.image-status')!.textContent = '\uf127'; resolve() }
+      image.onerror = () => { card.classList.add('failed'); card.querySelector('.image-status')!.textContent = '\uf127'; resolve() }
       image.src = `moe-image://picture/${item.key}/thumbnail?retry=${Date.now()}`
     })
+    const download = card.querySelector<HTMLButtonElement>('button[title="下载"]')!
+    download.disabled = !!item.unsupported || item.site === 'pixiv' && !item.original
+    const detail = item.site === 'pixiv' && !item.original && !item.unsupported ? window.moe.detail(item.key).then(detail => {
+      Object.assign(item, detail); download.disabled = false
+      card.querySelector('.file-info')!.textContent = item.original.split('?')[0].split('.').at(-1) ?? ''
+      card.querySelector<HTMLElement>('.image-count')!.hidden = !(item.pageCount && item.pageCount > 1)
+      card.querySelector('.image-count span')!.textContent = String(item.pageCount ?? '')
+    }).catch(error => { card.classList.add('detail-failed'); card.title += `\n${String(error)}` }) : Promise.resolve()
+    await Promise.all([thumbnail, detail]); card.classList.remove('loading')
   }
+
   async function loadImages(list: { card: HTMLElement; item: Picture }[]): Promise<void> {
     let next = 0
     await Promise.all(Array.from({ length: Math.min(8, list.length) }, async () => {
       while (next < list.length) { const job = list[next++]; if (job.card.isConnected) await load(job.card, job.item) }
     }))
   }
-  function retryFailed(): void { void loadImages(visible.filter(item => !cards.get(item.key)!.classList.contains('loaded')).map(item => ({ item, card: cards.get(item.key)! }))) }
+  function retryFailed(): void { void loadImages(visible.filter(item => !cards.get(item.key)!.classList.contains('loaded') || cards.get(item.key)!.classList.contains('detail-failed')).map(item => ({ item, card: cards.get(item.key)! }))) }
   function context(event: MouseEvent, item?: Picture): void {
     event.preventDefault(); menu.replaceChildren()
     if (!visible.length) return
@@ -120,17 +133,24 @@ async function startBrowser(): Promise<void> {
     $('no-results').hidden = visible.length > 0 || !!page.error
     const container = $('pictures'); container.replaceChildren(); $('gallery').scrollTop = 0
     visible.forEach((item, index) => {
-      const card = document.createElement('article'); card.className = `picture${item.viewed ? ' viewed' : ''}`; card.dataset.id = String(item.id)
-      card.innerHTML = '<canvas class="image-backdrop" aria-hidden="true"></canvas><img draggable="false" alt="" /><span class="image-status"></span><span class="badge score"></span><span class="badge resolution"></span><span class="badge file-info"></span><span class="badge image-id"></span><input type="checkbox" /><div class="operations"></div>'
+      const card = document.createElement('article'); card.className = `picture${item.viewed ? ' viewed' : ''}`; card.dataset.id = String(item.id); card.dataset.site = item.site ?? 'konachan-g'
+      card.innerHTML = '<canvas class="image-backdrop" aria-hidden="true"></canvas><img draggable="false" alt="" /><span class="image-status"></span><div class="card-top"><div class="top-numbers"><span class="badge image-count" hidden><i>&#xf302;</i> <span></span></span><span class="badge score"></span></div><span class="badge image-tip" hidden></span></div><span class="badge resolution"></span><span class="badge file-info"></span><div class="image-rank" hidden><b></b></div><span class="badge image-id"></span><input type="checkbox" /><div class="operations"></div>'
       const score = card.querySelector('.score')!, flame = document.createElement('i'); flame.textContent = '\uf06d'; score.append(flame, ` ${item.score}`)
       card.querySelector<HTMLElement>('.score')!.hidden = item.score === 0
       card.querySelector('.resolution')!.textContent = `${item.width} × ${item.height}`
       const ext = item.original.split('?')[0].split('.').at(-1) ?? ''
       card.querySelector('.file-info')!.textContent = `${ext.length < 5 ? ext : ''}${item.bytes ? ` ${item.bytes < 1048576 ? `${Math.round(item.bytes / 1024)}kB` : `${Math.round(item.bytes / 1048576 * 100) / 100}MB`}` : ''}`
-      card.querySelector('.image-id')!.textContent = String(item.id)
+      card.querySelector('.image-id')!.textContent = item.title || String(item.id)
+      card.querySelector<HTMLElement>('.image-count')!.hidden = !(item.pageCount && item.pageCount > 1)
+      card.querySelector('.image-count span')!.textContent = String(item.pageCount ?? '')
+      card.querySelector<HTMLElement>('.image-rank')!.hidden = !item.rank
+      card.querySelector('.image-rank b')!.textContent = String(item.rank ?? '')
+      card.querySelector<HTMLElement>('.image-tip')!.hidden = !item.tip
+      card.querySelector('.image-tip')!.textContent = item.tip ?? ''
+      card.querySelector('.image-tip')!.classList.toggle('highlight', !!item.tipHighlight)
       card.querySelector('input')!.setAttribute('aria-label', `选择图片 ${item.id}`)
       card.querySelector('img')!.setAttribute('alt', `图片 ${item.id}`)
-      card.title = `${item.tags.join(' ')}\n${item.author}\n${item.viewed ? '已读' : ''}`
+      card.title = `${item.tags.join(' ')}\n${item.author}\n${item.viewed ? '已读' : ''}${item.unsupported ? `\n${item.unsupported}` : ''}`
       const operations = card.querySelector('.operations')!
       for (const [icon, title, action] of [
         ['\uf2f9', '刷新', () => load(card, item)],
@@ -149,7 +169,7 @@ async function startBrowser(): Promise<void> {
       b.classList.toggle('current', p.index === page.index); return b
     }))
     $<HTMLButtonElement>('next').disabled = !!pages.at(-1)?.complete || busy
-    $('site-status').textContent = `当前搜索：Konachan-G${activeKeyword ? `→"${activeKeyword}"` : ''}　本页共 ${page.items.length} 张，已读 ${page.items.filter(i => i.viewed).length} 张`
+    $('site-status').textContent = `当前搜索：${sites[activeSite].name}${activeKeyword ? `→"${activeKeyword}"` : ''}　本页共 ${page.items.length} 张，已读 ${page.items.filter(i => i.viewed).length} 张`
     const last = page.realPages.at(-1)
     if (last) message(`第${last.page}页获取到图片${last.count}张，条件过滤${last.count - last.output}张`, false)
     if (page.error) message(`搜索中断:${page.error}`)
@@ -165,7 +185,7 @@ async function startBrowser(): Promise<void> {
     popup.hidden = true; menu.hidden = true; document.body.classList.add('has-search')
     const current = ++epoch; setBusy(true)
     try {
-      if (!next) { activeKeyword = value('keyword'); pages = []; $('pictures').replaceChildren(); $('pages').replaceChildren(); selected.clear(); cards.clear(); visible = []; $('no-results').hidden = true; selection() }
+      if (!next) { activeKeyword = value('keyword'); activeSite = networkInput().site ?? 'konachan-g'; const quality = $<HTMLSelectElement>('quality'); quality.replaceChildren(...(activeSite === 'pixiv' ? ['自动','原图','大图'] : ['原图','预览图','自动']).map(label => new Option(label))); pages = []; $('pictures').replaceChildren(); $('pages').replaceChildren(); selected.clear(); cards.clear(); visible = []; $('no-results').hidden = true; selection() }
       const result = await (next ? window.moe.next() : window.moe.search(input()))
       if (current !== epoch) return
       pages.push(result); display(result)
@@ -179,7 +199,7 @@ async function startBrowser(): Promise<void> {
     const version = ++hintEpoch
     $('hint-spinner').hidden = !value('keyword')
     try {
-      const result = await window.moe.hints(value('keyword'))
+      const result = await window.moe.hints(value('keyword'), networkInput().site)
       if (version !== hintEpoch) return
       $('hint-status').textContent = ''; $('hints').replaceChildren(...result.map(hint => {
         const b = button(hint.word, () => { $<HTMLInputElement>('keyword').value = hint.word; $<HTMLInputElement>('keyword').focus() })
@@ -189,12 +209,12 @@ async function startBrowser(): Promise<void> {
     finally { if (version === hintEpoch) $('hint-spinner').hidden = true }
   }
   let hintTimer: ReturnType<typeof setTimeout>
+  $('site').addEventListener('change', () => { clearTimeout(hintTimer); $('hints').replaceChildren(); $('hint-status').textContent = ''; void hints() })
   $('keyword').onfocus = () => { popup.hidden = false; void hints() }
   $('keyword').oninput = () => { clearTimeout(hintTimer); hintEpoch++; hintTimer = setTimeout(() => { void hints() }, 600) }
   $('parameters-toggle').onclick = () => { popup.hidden = !popup.hidden }
   $('filter-resolution').onchange = () => { $<HTMLInputElement>('min-width').disabled = $<HTMLInputElement>('min-height').disabled = !checked('filter-resolution') }
-  $('count').onchange = () => { if ($<HTMLInputElement>('count').checkValidity()) void window.moe.count(Number(value('count'))).catch(failure) }
-  $('proxy').onchange = () => { pending('代理设置'); $<HTMLSelectElement>('proxy').selectedIndex = 0 }
+  $('count').onchange = () => { if ($<HTMLInputElement>('count').checkValidity()) void window.moe.count(Number(value('count')), networkInput().site).catch(failure) }
   $('gallery').oncontextmenu = event => context(event)
   $('size').oninput = () => { const size = Number(value('size')); document.documentElement.style.setProperty('--picture-size', `${size}px`); void window.moe.size(size).catch(failure) }
   $('size').onwheel = event => {
@@ -208,8 +228,17 @@ async function startBrowser(): Promise<void> {
   $('clear-collected').onclick = () => { $<HTMLTextAreaElement>('collected').value = '' }
   $('download-selected').onclick = () => { void downloadSelected() }
   $('export-selected').onclick = () => {
-    for (const item of visible) if (selected.has(item.key)) $<HTMLTextAreaElement>('collected').value += `${value('quality') === '预览图' ? item.preview : item.original}\n`
-    selected.clear(); selection(); message('已添加至收集箱')
+    const list = visible.filter(item => selected.has(item.key)), quality = value('quality'), currentEpoch = epoch
+    void (async () => {
+      const lines: string[] = []
+      for (const item of list) {
+        if (item.site === 'pixiv' && !item.original) Object.assign(item, await window.moe.detail(item.key))
+        for (const page of item.pages ?? [item]) { const url = ['预览图','大图'].includes(quality) ? page.preview : page.original; if (url) lines.push(url) }
+      }
+      $<HTMLTextAreaElement>('collected').value += lines.map(url => `${url}\n`).join('')
+      if (epoch === currentEpoch) { selected.clear(); selection() }
+      message('已添加至收集箱')
+    })().catch(failure)
   }
   $('logo').onclick = () => pending('原版彩蛋')
   document.addEventListener('click', event => {

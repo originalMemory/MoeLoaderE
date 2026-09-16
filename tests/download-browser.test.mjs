@@ -20,7 +20,7 @@ test('下载桌面闭环：入队、文件、类型、任务包、IPC 与关闭�
   dialog.showSaveDialog=async()=>({canceled:globalThis.saveCancelled,filePath:bundlePath})
   dialog.showErrorBox=(_title,message)=>{globalThis.dialogError=message}
   const picture=nativeImage.createFromBitmap(Buffer.alloc(64*36*4,200),{width:64,height:36}), png=picture.toPNG(), jpg=picture.toJPEG(85)
-  session.defaultSession.protocol.handle('https',async request=>{
+  session.fromPartition('persist:moe-site-konachan-g').protocol.handle('https',async request=>{
    const u=new URL(request.url);globalThis.requests.push({url:request.url,referer:request.headers.get('referer')})
    if(u.pathname==='/tag.json')return new Response('[]')
    if(u.pathname==='/post.json')return new Response(JSON.stringify(Array.from({length:10},(_,i)=>({id:500+i,width:640,height:360,rating:'s',tags:'test landscape',preview_url:`https://konachan.net/${i}-thumb.png`,sample_url:`https://konachan.net/${i}-sample.png`,file_url:`https://konachan.net/${i}-original.jpg` }))))

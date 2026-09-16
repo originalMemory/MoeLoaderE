@@ -5,6 +5,7 @@ import koffi from 'koffi'
 // Window composition policy ported from FluentWPF AcrylicHelper (MIT).
 const materials = new WeakMap<BrowserWindow, boolean>()
 const activeStates = new WeakMap<BrowserWindow, boolean>()
+const overlayWindows = new WeakSet<BrowserWindow>()
 const materialSetters = new WeakMap<BrowserWindow, (enabled: boolean) => boolean>()
 let acrylicEnabled = true
 let setAccent: ((handle: bigint, state: number) => boolean) | undefined
@@ -17,7 +18,7 @@ export function appearance(window: BrowserWindow) {
 export function publishAppearance(window: BrowserWindow): void {
   if (window.isDestroyed() || !materials.has(window)) return
   const value = appearance(window)
-  if (process.platform !== 'darwin') window.setTitleBarOverlay({ color: '#00000000', symbolColor: value.active ? value.dark ? '#ffffff' : '#000000' : '#808080', height: 30 })
+  if (process.platform !== 'darwin' && overlayWindows.has(window)) window.setTitleBarOverlay({ color: '#00000000', symbolColor: value.active ? value.dark ? '#ffffff' : '#000000' : '#808080', height: 30 })
   window.webContents.send('moe:appearance', value)
 }
 
@@ -35,7 +36,8 @@ export function setAcrylicEnabled(enabled: boolean): void {
   for (const window of BrowserWindow.getAllWindows()) applyMaterial(window)
 }
 
-export function installAppearance(window: BrowserWindow): void {
+export function installAppearance(window: BrowserWindow, titleBarOverlay = true): void {
+  if (titleBarOverlay) overlayWindows.add(window)
   let apply: (enabled: boolean) => boolean = () => false
   if (process.platform === 'darwin') {
     apply = enabled => { window.setVibrancy(enabled ? 'under-window' : null); return enabled }

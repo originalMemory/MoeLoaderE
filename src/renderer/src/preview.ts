@@ -9,6 +9,7 @@ export async function showPreview(): Promise<void> {
   })
   window.addEventListener('unload', unsubscribe, { once: true })
   document.title = '预览'
+  document.querySelector('#preview-title')!.textContent = item.title ?? ''
   for (const [name, value] of [['作者', item.author], ['作品ID', item.id], ['评分', item.score], ['分辨率', `${item.width}x${item.height}`], ['日期', item.date]]) {
     const entry = document.createElement('span'), valueElement = document.createElement('b')
     entry.textContent = `${name}：`; valueElement.textContent = String(value); entry.append(valueElement)

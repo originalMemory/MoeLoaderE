@@ -53,6 +53,8 @@ export function installControls(): void {
     options.id = `options-${select.id || [...document.querySelectorAll('.select-control')].length}`; toggle.setAttribute('aria-controls', options.id)
     const refresh = (): void => { toggle.textContent = select.selectedOptions[0]?.textContent ?? ''; toggle.disabled = select.disabled }
     const choose = (index: number): void => { select.selectedIndex = index; select.dispatchEvent(new Event('change', { bubbles: true })); refresh(); close(); toggle.focus() }
+    const rebuild = (): void => {
+    options.replaceChildren()
     for (const [index, option] of [...select.options].entries()) {
       const item = document.createElement('button'); item.type = 'button'; item.className = 'select-option'; item.role = 'option'; item.textContent = option.text; item.disabled = option.disabled
       item.onclick = () => choose(index)
@@ -62,6 +64,11 @@ export function installControls(): void {
       }
       options.append(item)
     }
+    refresh()
+    }
+    rebuild()
+    new MutationObserver(rebuild).observe(select, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled', 'label'] })
+    select.addEventListener('moe:refresh', refresh)
     const open = (): void => {
       if (opened === wrapper) { close(); return }
       close(); opened = wrapper; options.hidden = false; toggle.setAttribute('aria-expanded', 'true')

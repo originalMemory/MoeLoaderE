@@ -19,7 +19,7 @@ test('Mac 毛玻璃：开关、主预览同步、系统限制、失焦与持久�
    const original=BrowserWindow.prototype.setVibrancy
    BrowserWindow.prototype.setVibrancy=function(value,...args){globalThis.vibrancyCalls.push({id:this.id,value});return original.call(this,value,...args)}
    const png=nativeImage.createFromBitmap(Buffer.alloc(4,255),{width:1,height:1}).toPNG()
-   session.defaultSession.protocol.handle('https',request=>{
+   session.fromPartition('persist:moe-site-konachan-g').protocol.handle('https',request=>{
      const url=new URL(request.url)
      if(url.pathname==='/post.json')return new Response(JSON.stringify(url.searchParams.get('page')==='1'?[{id:1,width:10,height:10,rating:'s',preview_url:'https://konachan.net/a.png',sample_url:'https://konachan.net/a.png',file_url:'https://konachan.net/a.png'}]:[]))
      return new Response(png,{headers:{'content-type':'image/png'}})
