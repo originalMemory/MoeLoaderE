@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { Appearance, BrowserApi, DownloadSnapshot, NetworkSnapshot } from '../shared/types'
 
 const api: BrowserApi = {
+  setSearchSettings: value => ipcRenderer.invoke('moe:search-settings', value),
+  clearHistory: () => ipcRenderer.invoke('moe:clear-history'),
   network: () => ipcRenderer.invoke('moe:network'),
   setNetwork: value => ipcRenderer.invoke('moe:set-network', value),
   onNetwork: callback => {

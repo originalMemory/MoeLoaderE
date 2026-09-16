@@ -41,6 +41,33 @@ async function startBrowser(): Promise<void> {
   window.addEventListener('resize', fitPopup)
   const input = (): SearchInput => ({ ...networkInput(), keyword: value('keyword'), page: Number(value('start-page')), count: Number(value('count')), filterResolution: checked('filter-resolution'), minWidth: Number(value('min-width')), minHeight: Number(value('min-height')), orientation: Number(value('orientation')) as 0 | 1 | 2 })
 
+  const searchFields = ['load-concurrency', 'history-limit', 'hide-viewed'].map(id => $<HTMLInputElement>(id))
+  const restoreSearchSettings = (): void => {
+    searchFields[0].value = String(settings.searchSettings.loadConcurrency)
+    searchFields[1].value = String(settings.searchSettings.historyLimit)
+    searchFields[2].checked = settings.searchSettings.hideViewed
+  }
+  restoreSearchSettings()
+  for (const field of searchFields) field.onchange = () => {
+    if (!searchFields.every(input => input.reportValidity())) { restoreSearchSettings(); return }
+    const next = { loadConcurrency: Number(searchFields[0].value), historyLimit: Number(searchFields[1].value), hideViewed: searchFields[2].checked }
+    searchFields.forEach(input => { input.disabled = true })
+    void window.moe.setSearchSettings(next).then(() => {
+      const redraw = next.hideViewed !== settings.searchSettings.hideViewed
+      settings.searchSettings = next
+      if (redraw && currentPage) display(currentPage)
+      pumpImages()
+      if (!value('keyword')) void hints()
+    }).catch(error => { restoreSearchSettings(); failure(error) }).finally(() => { searchFields.forEach(input => { input.disabled = false }) })
+  }
+  $<HTMLButtonElement>('clear-history').onclick = () => {
+    const button = $<HTMLButtonElement>('clear-history'); button.disabled = true
+    void window.moe.clearHistory().then(() => {
+      if (!value('keyword')) void hints()
+      message('已清除所有历史记录')
+    }).catch(failure).finally(() => { button.disabled = false })
+  }
+
   function selection(): void {
     for (const [key, card] of cards) { card.classList.toggle('selected', selected.has(key)); card.querySelector<HTMLInputElement>('input')!.checked = selected.has(key) }
     $('selection-actions').hidden = selected.size === 0
@@ -65,7 +92,7 @@ async function startBrowser(): Promise<void> {
     }
     selection()
   }
-  async function load(card: HTMLElement, item: Picture): Promise<void> {
+  async function loadOne(card: HTMLElement, item: Picture): Promise<void> {
     const image = card.querySelector<HTMLImageElement>('img')!
     if (card.classList.contains('loading')) return Promise.resolve()
     card.classList.remove('loaded', 'failed', 'detail-failed'); card.classList.add('loading'); card.querySelector('.image-status')!.textContent = '\uf110'
@@ -91,11 +118,23 @@ async function startBrowser(): Promise<void> {
     await Promise.all([thumbnail, detail]); card.classList.remove('loading')
   }
 
-  async function loadImages(list: { card: HTMLElement; item: Picture }[]): Promise<void> {
-    let next = 0
-    await Promise.all(Array.from({ length: Math.min(8, list.length) }, async () => {
-      while (next < list.length) { const job = list[next++]; if (job.card.isConnected) await load(job.card, job.item) }
-    }))
+  const pendingImages = new Map<HTMLElement, Picture>()
+  let loadingImages = 0
+  function pumpImages(): void {
+    for (const [card, item] of pendingImages) {
+      if (!card.isConnected) { pendingImages.delete(card); continue }
+      if (loadingImages >= settings.searchSettings.loadConcurrency) break
+      pendingImages.delete(card); loadingImages++
+      void loadOne(card, item).catch(failure).finally(() => { loadingImages--; pumpImages() })
+    }
+  }
+  function load(card: HTMLElement, item: Picture): void {
+    if (!card.classList.contains('loading')) pendingImages.set(card, item)
+    pumpImages()
+  }
+  function loadImages(list: { card: HTMLElement; item: Picture }[]): void {
+    for (const { card, item } of list) if (!card.classList.contains('loading')) pendingImages.set(card, item)
+    pumpImages()
   }
   function retryFailed(): void { void loadImages(visible.filter(item => !cards.get(item.key)!.classList.contains('loaded') || cards.get(item.key)!.classList.contains('detail-failed')).map(item => ({ item, card: cards.get(item.key)! }))) }
   function context(event: MouseEvent, item?: Picture): void {
@@ -129,7 +168,7 @@ async function startBrowser(): Promise<void> {
   }
   function display(page: VisualPage): void {
     currentPage = page; selected.clear(); cards.clear(); anchor = -1
-    visible = page.items.filter(i => !i.filtered)
+    visible = page.items.filter(i => !i.filtered && !(settings.searchSettings.hideViewed && i.viewed))
     $('no-results').hidden = visible.length > 0 || !!page.error
     const container = $('pictures'); container.replaceChildren(); $('gallery').scrollTop = 0
     visible.forEach((item, index) => {
@@ -185,7 +224,7 @@ async function startBrowser(): Promise<void> {
     popup.hidden = true; menu.hidden = true; document.body.classList.add('has-search')
     const current = ++epoch; setBusy(true)
     try {
-      if (!next) { activeKeyword = value('keyword'); activeSite = networkInput().site ?? 'konachan-g'; const quality = $<HTMLSelectElement>('quality'); quality.replaceChildren(...(activeSite === 'pixiv' ? ['自动','原图','大图'] : ['原图','预览图','自动']).map(label => new Option(label))); pages = []; $('pictures').replaceChildren(); $('pages').replaceChildren(); selected.clear(); cards.clear(); visible = []; $('no-results').hidden = true; selection() }
+      if (!next) { activeKeyword = value('keyword'); activeSite = networkInput().site ?? 'konachan-g'; const quality = $<HTMLSelectElement>('quality'); quality.replaceChildren(...(activeSite === 'pixiv' ? ['自动','原图','大图'] : ['原图','预览图','自动']).map(label => new Option(label))); pages = []; currentPage = undefined; $('pictures').replaceChildren(); $('pages').replaceChildren(); selected.clear(); cards.clear(); visible = []; $('no-results').hidden = true; selection() }
       const result = await (next ? window.moe.next() : window.moe.search(input()))
       if (current !== epoch) return
       pages.push(result); display(result)

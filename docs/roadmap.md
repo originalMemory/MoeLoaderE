@@ -30,10 +30,10 @@
 | --- | --- | --- | --- |
 | 0 | Git、路线图、首阶段 spec | 已完成 | 文档已建立 |
 | 1 | Electron 工程、最小窗口、开发与构建命令 | 已完成，review 问题已修复 | [spec](../specs/speclite/electron-bootstrap/spec.md)；Windows 运行及启动失败退出码验证通过，macOS 未实测 |
-| 2 | 对照源主界面、搜索与预览 UI，接通单个 Booru 站点 | 已完成，review 问题已修复 | [验收记录](../openspec/changes/port-booru-browser/review.md)；22/22，6 项测试及在线验证通过 |
+| 2 | 对照源主界面、搜索与预览 UI，接通单个 Booru 站点 | 已完成，review 问题已修复 | [验收记录](../openspec/changes/port-booru-browser/review.md)；24/24，6 项测试及在线验证通过 |
 | 3 | 下载队列、取消重试、命名、组图与临时文件 | 已完成，review 修复已验收 | [验收记录](../openspec/changes/port-download-queue/review.md)；Mac 15 项测试与真实下载通过；整体 review 的 4 项问题已修复；下载 UI 已按源 XAML 对齐，组图使用引擎/界面样本验证 |
 | 4 | 登录、Cookie、代理与需登录站点 | 已实现，review 问题已修复，真实账号验收留待 Windows | [验收记录](../openspec/changes/port-session-auth/review.md)；21 项测试通过，真实登录页/系统代理已验证，账号操作尚未验证 |
-| 5 | 其他站点、自定义站点、设置与历史记录 | 未开始 | 未验证 |
+| 5 | 其他站点、自定义站点、设置与历史记录 | 进行中：搜索设置与历史完成 | [第一批验收](../openspec/changes/port-search-settings/review.md)；24 项测试通过；站点扩展、自定义站点和剩余外观设置待迁移 |
 | 6 | Windows/macOS 打包与发布验证 | 未开始 | 未验证 |
 
 登录技术验证在批量扩展站点前完成；若它影响网络结构，可提前到阶段 2 后执行。

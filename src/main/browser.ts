@@ -15,6 +15,7 @@ import { SiteNetwork } from './network'
 import { installLogin } from './login'
 import { allowedSiteUrl, siteForUrl, sites, validSite } from '../shared/network'
 import { pixivVisualPage, resolvePixiv } from '../shared/pixiv'
+import { restoreSearchSettings, validateSearchSettings } from '../shared/search-settings'
 
 export function isSiteUrl(value: string): boolean {
   try { siteForUrl(value); return true } catch { return false }
@@ -45,16 +46,16 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
   const siteResponse = (url: string, signal: AbortSignal, referer?: string, retry = true): Promise<Response> => network.request(url, signal, referer, retry)
   const settingsPath = join(app.getPath('userData'), 'browser.json')
   const saved = existsSync(settingsPath) ? JSON.parse(readFileSync(settingsPath, 'utf8')) : {}
-  const state: BrowserState = { siteCounts: { 'konachan-g': 60, pixiv: 60 }, count: 60, size: 192, history: [], acrylicEnabled: typeof saved.acrylicEnabled === 'boolean' ? saved.acrylicEnabled : true }
+  const state: BrowserState = { searchSettings: restoreSearchSettings(saved.searchSettings), siteCounts: { 'konachan-g': 60, pixiv: 60 }, count: 60, size: 192, history: [], acrylicEnabled: typeof saved.acrylicEnabled === 'boolean' ? saved.acrylicEnabled : true }
   setAcrylicEnabled(state.acrylicEnabled)
   if (saved.bounds && ['x', 'y', 'width', 'height'].every(key => Number.isFinite(saved.bounds[key])) && saved.bounds.width >= 700 && saved.bounds.height >= 400) state.bounds = saved.bounds
   if (Number.isInteger(saved.count) && saved.count >= 10 && saved.count <= 500) state.count = saved.count
   if (Number.isFinite(saved.size) && saved.size >= 72 && saved.size <= 512) state.size = saved.size
-  if (Array.isArray(saved.history)) state.history = saved.history.filter((v: unknown) => typeof v === 'string' && v.length <= 1000).slice(0, 26)
+  if (Array.isArray(saved.history)) state.history = saved.history.filter((v: unknown) => typeof v === 'string' && v.length <= 1000).slice(0, state.searchSettings.historyLimit)
   state.siteCounts['konachan-g'] = state.count
   if (Number.isInteger(saved.siteCounts?.pixiv) && saved.siteCounts.pixiv >= 10 && saved.siteCounts.pixiv <= 500) state.siteCounts.pixiv = saved.siteCounts.pixiv
   const viewedBySite = { 'konachan-g': new Viewed(typeof saved.viewed === 'string' ? saved.viewed : ''), pixiv: new Viewed(typeof saved.pixivViewed === 'string' ? saved.pixivViewed : '') }
-  const histories = { 'konachan-g': state.history, pixiv: Array.isArray(saved.pixivHistory) ? saved.pixivHistory.filter((v: unknown) => typeof v === 'string' && v.length <= 1000).slice(0,26) as string[] : [] }
+  const histories = { 'konachan-g': state.history, pixiv: Array.isArray(saved.pixivHistory) ? saved.pixivHistory.filter((v: unknown) => typeof v === 'string' && v.length <= 1000).slice(0,state.searchSettings.historyLimit) as string[] : [] }
   const items = new Map<string, Picture>()
   const previews = new Map<number, Picture>()
   let input: SearchInput | undefined, searchAbort: AbortController | undefined, hintAbort: AbortController | undefined
@@ -202,6 +203,25 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
     return { added, errors }
   })
   handle('init', () => state)
+  handle('search-settings', (_event, value) => {
+    const next = validateSearchSettings(value), previous = state.searchSettings
+    const previousHistories = Object.values(histories).map(history => [...history])
+    state.searchSettings = next
+    for (const history of Object.values(histories)) history.splice(next.historyLimit)
+    try { save() } catch (error) {
+      state.searchSettings = previous
+      Object.values(histories).forEach((history, index) => history.splice(0, history.length, ...previousHistories[index]))
+      throw error
+    }
+  })
+  handle('clear-history', () => {
+    const previous = Object.values(histories).map(history => [...history])
+    for (const history of Object.values(histories)) history.length = 0
+    try { save() } catch (error) {
+      Object.values(histories).forEach((history, index) => history.push(...previous[index]))
+      throw error
+    }
+  })
   handle('set-acrylic', (_event, enabled) => {
     if (typeof enabled !== 'boolean') throw new Error('毛玻璃设置无效')
     const previous = state.acrylicEnabled
@@ -218,10 +238,10 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
     if (input.site !== 'pixiv') state.count = input.count
     const history = histories[input.site ?? 'konachan-g']
     if (input.keyword) {
-      if (history.length > 25) history.splice(24, 1)
       const old = history.indexOf(input.keyword)
       if (old >= 0) history.splice(old, 1)
       history.unshift(input.keyword)
+      history.splice(state.searchSettings.historyLimit)
     }
     return getNext()
   })

@@ -4,7 +4,7 @@
 
 - 技术路线：Electron + TypeScript。
 - 初始目标：Windows、macOS 桌面端；Linux 暂不考虑，移动端和浏览器版未纳入。
-- 当前状态：阶段 4 登录、Cookie、代理及 Pixiv 静态浏览/下载已实现，样本测试通过；阶段 review 的 3 项问题已修复，真实 Pixiv 账号验收待完成。动图转换、镜像及其他站点留待后续。
+- 当前状态：阶段 4 已提交推送，Pixiv 真实账号验收留到 Windows。阶段 5 已接通搜索设置与历史记录，完整测试 24/24 通过；其他站点、自定义站点及剩余外观设置继续分批迁移。
 - 迁移原则：逻辑、UI 布局、样式、文案与交互保持源项目一致，差异逐项记录，不默默改变行为。
 
 ## 本地开发
@@ -57,6 +57,7 @@ Windows 材质通过 Koffi 在主进程调用窗口合成接口，使用原版 F
 - [第二阶段 review 与差异](openspec/changes/port-booru-browser/review.md)
 - [第三阶段下载主体与验证](openspec/changes/port-download-queue/review.md)
 - [第四阶段登录、会话与代理验收](openspec/changes/port-session-auth/review.md)
+- [第五阶段第一批：搜索设置与历史](openspec/changes/port-search-settings/review.md)
 
 ## 登录与代理
 

@@ -52,7 +52,9 @@ export interface VisualPage {
   error?: string
   cursor?: string
 }
+export interface SearchSettings { loadConcurrency: number; historyLimit: number; hideViewed: boolean }
 export interface BrowserState {
+  searchSettings: SearchSettings
   siteCounts: Record<SiteId, number>
   acrylicEnabled: boolean
   count: number
@@ -61,6 +63,8 @@ export interface BrowserState {
   bounds?: { x: number; y: number; width: number; height: number }
 }
 export interface BrowserApi {
+  setSearchSettings(value: SearchSettings): Promise<void>
+  clearHistory(): Promise<void>
   network(): Promise<NetworkSnapshot>
   setNetwork(value: NetworkSettings): Promise<void>
   onNetwork(callback: (value: NetworkSnapshot) => void): () => void

@@ -78,11 +78,11 @@
           <label class="settings-line">全局代理设置<select id="global-proxy" aria-label="全局代理设置"><option value="none">不使用代理</option><option value="custom">自定义</option><option value="system">系统代理</option></select></label>
           <label class="settings-line">自定义代理地址及端口<input id="proxy-address" value="127.0.0.1:1080" title="格式为 ip:端口" aria-label="自定义代理地址及端口" /></label>
         </div></fieldset>
-        <fieldset data-settings-pending="搜索设置"><legend>搜索设置</legend><div class="settings-content">
-          <label class="settings-line">图片同时加载数量<input type="number" min="5" max="20" value="8" aria-label="图片同时加载数量" /></label>
-          <label class="settings-line">历史记录最大数量<input type="number" min="5" max="30" value="25" aria-label="历史记录最大数量" /></label>
-          <label class="settings-check viewed-setting"><input type="checkbox" />当前页不显示已浏览图片（仅缩略图展示，不影响翻页）</label>
-          <button class="settings-wide" data-pending="清除历史记录">清除历史记录</button>
+        <fieldset id="search-settings"><legend>搜索设置</legend><div class="settings-content">
+          <label class="settings-line">图片同时加载数量<input id="load-concurrency" type="number" min="5" max="20" value="8" required aria-label="图片同时加载数量" /></label>
+          <label class="settings-line">历史记录最大数量<input id="history-limit" type="number" min="5" max="30" value="25" required aria-label="历史记录最大数量" /></label>
+          <label class="settings-check viewed-setting"><input id="hide-viewed" type="checkbox" />当前页不显示已浏览图片（仅缩略图展示，不影响翻页）</label>
+          <button class="settings-wide" id="clear-history">清除历史记录</button>
         </div></fieldset>
         <fieldset id="download-settings"><legend>下载设置</legend><div class="settings-content">
           <label class="settings-line download-concurrency">同时下载数量<input name="concurrency" type="number" min="1" max="15" aria-label="同时下载数量" required /></label>
