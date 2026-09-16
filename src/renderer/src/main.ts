@@ -217,8 +217,14 @@ async function startBrowser(): Promise<void> {
   })
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') { popup.hidden = true; menu.hidden = true }
-    if ((event.target as HTMLElement).matches('input,textarea,select')) return
-    if (event.ctrlKey && ['a', 'd', 'r'].includes(event.key.toLowerCase())) {
+    const target = event.target as HTMLElement
+    const command = document.documentElement.dataset.platform === 'darwin' && event.metaKey && !event.altKey && !event.shiftKey
+    if (target.matches('input,textarea,select')) {
+      // Native menu shortcuts are bypassed for these keys, so keep text Select All here.
+      if (command && event.key.toLowerCase() === 'a' && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) { event.preventDefault(); target.select() }
+      return
+    }
+    if ((event.ctrlKey || command) && ['a', 'd', 'r'].includes(event.key.toLowerCase())) {
       event.preventDefault()
       if (event.key.toLowerCase() === 'a') operate('all')
       if (event.key.toLowerCase() === 'd' && selected.size) pending('下载所选')

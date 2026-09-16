@@ -85,3 +85,26 @@
 - 像素粗对照：同尺寸初始非活动态，裁去标题栏后，RGB 平均绝对差约 1.62/255；单像素平均差大于 20 的比例约 1.86%。指标包含大量留白，仅作为补充证据，不替代控件和状态检查。
 - 图像：`artifacts/visual-comparison.png` 左侧原版、右侧当前；`visual-native-window.png` 包含真实系统窗口按钮；`visual-light.png`、`visual-dark.png`、`visual-inactive.png`、`visual-parameters.png`、`visual-dropdown.png` 覆盖主要状态。
 - 开发模式验证：原生材质、preload、CSP 与样式通过，控制台无 error；窗口关闭后开发进程正常退出。
+
+## macOS 补充验收（2026-09-16）
+
+- 环境：macOS 26.3.1 (a)、Apple Silicon arm64、Node 26.0.0、Electron 44.3.0。
+- 用户接受 Mac 使用系统回退字体（实际中文为苹方），不要求复刻 Windows 微软雅黑。
+- Mac 浏览快捷键补充 Command+A / R / D，同时保留原 Ctrl 行为；绕开原生 Select All / Reload 菜单对浏览快捷键的抢占。输入框与收集箱的 Command+A 显式保留文本全选。
+- 回归检查覆盖图片全选、输入框文本选择、失败缩略图重试后保留页面/选择，以及下载尚未迁移的提示。
+- 本机参考 `../MoeLoaderP` 与远端 master 均为 `f37c511`，本机工作区干净。87 个源哈希中 80 个匹配，以下 7 个文件与迁移记录不同，均已排除单纯 CRLF/LF 差异：
+  - `MoeLoaderP.Core/SearchSession.cs`
+  - `MoeLoaderP.Core/MoeItem.cs`
+  - `MoeLoaderP.Core/MoeDownloader.cs`
+  - `MoeLoaderP.Wpf/ControlParts/MoeExplorerControl.xaml.cs`
+  - `MoeLoaderP.Wpf/ControlParts/DownloaderControl.xaml.cs`
+  - `MoeLoaderP.Wpf/ControlParts/DownloaderControl.xaml`
+  - `MoeLoaderP.Wpf/Assets/Lang/zh-CN.xaml`
+- 这 7 项恰好对应路线图记录的 Windows 未提交源码；旧记录只有哈希，没有那份源码内容，不能据此推断具体新增功能。未改写原始源哈希，也未更改参考仓库。
+
+- 最终 `npm test`：类型检查、生产构建、全部 6 项测试通过，无跳过。中途一轮在原有首屏 10 张加载等待处超时；测试改为填写数量后先 Tab 提交输入，再触发搜索，最终整套通过，不宣称已定位历史偶发现象。
+- 解锁后通过原生 UI 验证：关键词和数量框 Command+A 能替换全部内容；真实 Konachan-G 搜索 10 张缩略图成功；图片 Command+A 全选，Command+R 保留结果和选择；Command+D 显示尚未迁移提示；独立预览加载及 Escape 返回正常。
+- 原生标题栏无重叠，绿色按钮的缩放/恢复正常；关闭主窗口后再激活能重建窗口；Command+Q 正常退出。已查看活动/失焦窗口和原生预览截图，系统按钮状态正常。窗口使用系统 vibrancy，未做与 Windows 材质的像素等价断言；物理触控板手感、安装包、签名、公证仍不在本次验证范围。
+- 本次没有修改字体、下载/登录等后续阶段功能、参考项目或源哈希基线。
+
+- 2026-09-16 用户确认：上述 7 个文件的差异是后续优化，不影响主体逻辑，不阻塞下一阶段；暂以本机参考版本推进，待 Windows 优化同步后单独对照。

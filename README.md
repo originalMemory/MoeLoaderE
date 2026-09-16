@@ -9,7 +9,7 @@
 
 ## 本地开发
 
-需要 Node.js 22.12+ 和 npm。本阶段验证环境为 Windows、Node.js 22.16.0、npm 10.9.2；macOS 尚未实测。
+需要 Node.js 22.12+ 和 npm。已验证 Windows（Node.js 22.16.0、npm 10.9.2）和 macOS 26.3.1 Apple Silicon（Node.js 26.0.0、npm 11.12.1）的本地构建与运行。
 
 ```sh
 npm ci
@@ -34,7 +34,7 @@ npx --no install-electron
 | `npm test` | 构建并运行真实 Electron 窗口检查，需要桌面会话；无需额外安装 Playwright 浏览器 |
 | `npm run test:online` | 独立的真实站点检查：搜索 10 张图片，验证缩略图与预览；需要网络 |
 
-默认测试使用本地响应，覆盖搜索/过滤/分页/已读、选择/预览/取消、IPC 边界与启动回归；在线检查单独运行。截图写入忽略目录 `artifacts/`。macOS 分支需在 macOS 上运行才能验收。
+默认测试使用本地响应，覆盖搜索/过滤/分页/已读、选择/预览/取消、IPC 边界与启动回归；在线检查单独运行。截图写入忽略目录 `artifacts/`。macOS 启动生命周期、浏览和 Command 快捷键已在实机验证；安装包尚未验收。
 
 ## 工程结构
 
@@ -44,7 +44,7 @@ npx --no install-electron
 - `src/renderer/`：原版布局的 HTML/CSS/TypeScript 实现与独立预览。
 - `tests/`：逻辑和桌面检查，使用临时浏览器配置目录。
 
-Windows 材质通过 Koffi 在主进程调用窗口合成接口，使用原版 FluentWPF 噪点及配色；macOS 使用系统 vibrancy。已验证 Windows 10，macOS 与 Windows 11 尚未实测。打包阶段需保留 Koffi 的平台原生模块。
+Windows 材质通过 Koffi 在主进程调用窗口合成接口，使用原版 FluentWPF 噪点及配色；macOS 使用系统 vibrancy。已验证 Windows 10 及 macOS 窗口运行与外观；Windows 11 尚未实测。打包阶段需保留 Koffi 的平台原生模块。
 
 构建采用 electron-vite 5 + Vite 7，依赖固定版本。不使用额外 UI 框架或 C# 应用子进程。浏览设置保存在 Electron userData 下的 `browser.json`，不会改写原项目设置。
 

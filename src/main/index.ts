@@ -38,6 +38,13 @@ function createWindow(previewKey?: string): BrowserWindow {
   })
   installAppearance(window)
 
+  if (process.platform === 'darwin' && !preview) {
+    // Let the page handle browse shortcuts instead of the native Select All / Reload menu.
+    window.webContents.on('before-input-event', (_event, input) => {
+      window.webContents.setIgnoreMenuShortcuts(input.meta && !input.alt && !input.shift && ['a', 'd', 'r'].includes(input.key.toLowerCase()))
+    })
+  }
+
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   window.webContents.on('will-navigate', (event) => event.preventDefault())
   window.once('ready-to-show', () => window.show())
