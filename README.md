@@ -4,12 +4,12 @@
 
 - 技术路线：Electron + TypeScript。
 - 初始目标：Windows、macOS 桌面端；Linux 暂不考虑，移动端和浏览器版未纳入。
-- 当前状态：阶段 4 已提交推送，Pixiv 真实账号验收留到 Windows。阶段 5 已接通搜索设置与历史记录，新增 Safebooru 搜索/预览/下载已通过真实联网验证，背景图/低性能模式已接通，完整测试 27/27 通过；其他站点、自定义站点继续分批迁移。
+- 当前状态：阶段 4 已提交推送，Pixiv 真实账号验收留到 Windows。阶段 5 已接通搜索设置与历史记录，新增 Safebooru 搜索/预览/下载已通过真实联网验证，背景图/低性能模式已接通，自定义站点第一批（静态分类/XPath/详情图组）已接通，完整回归 32/32 通过；其余站点和自定义登录/动态分类继续分批迁移。
 - 迁移原则：逻辑、UI 布局、样式、文案与交互保持源项目一致，差异逐项记录，不默默改变行为。
 
 ## 本地开发
 
-需要 Node.js 22.12+ 和 npm。已验证 Windows（Node.js 22.16.0、npm 10.9.2）和 macOS 26.3.1 Apple Silicon（Node.js 26.0.0、npm 11.12.1）的本地构建与运行。
+需要 Node.js `^22.22.2 || ^24.15.0 || >=26.0.0` 和 npm（自定义站点 HTML 解析库要求）。本批在 macOS 26.3.1 Apple Silicon（Node.js 26.0.0、npm 11.12.1）验证；Windows 早期验证使用的 Node.js 22.16.0 需升级后复验。
 
 ```sh
 npm ci
@@ -60,6 +60,8 @@ Windows 材质通过 Koffi 在主进程调用窗口合成接口，使用原版 F
 - [第五阶段第一批：搜索设置与历史](openspec/changes/port-search-settings/review.md)
 - [第五阶段第二批：Safebooru](openspec/changes/port-safebooru/review.md)
 - [第五阶段第三批：背景图与低性能模式](openspec/changes/port-display-settings/review.md)
+- [自定义站点使用指南](docs/custom-sites.md)
+- [第五阶段第四批：自定义站点](openspec/changes/port-custom-sites/review.md)
 
 ## 登录与代理
 

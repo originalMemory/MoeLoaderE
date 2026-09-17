@@ -1,5 +1,5 @@
 import type { NetworkSnapshot, SearchInput, SiteId } from '../../shared/types'
-import { networkDefaults } from '../../shared/network'
+import { networkDefaults, sites } from '../../shared/network'
 
 export function installNetworkUi(report: (text: string) => void, counts: Record<SiteId, number>): () => Partial<SearchInput> {
   const site = document.querySelector<HTMLSelectElement>('#site')!, proxy = document.querySelector<HTMLSelectElement>('#proxy')!
@@ -21,7 +21,7 @@ export function installNetworkUi(report: (text: string) => void, counts: Record<
     if (updating) return
     updating = true
     for (const field of [globalProxy, proxy, address]) field.disabled = true
-    const next={...snapshot.settings,globalMode:globalProxy.value as NetworkSnapshot['settings']['globalMode'],proxyAddress:address.value,siteModes:{...snapshot.settings.siteModes,[site.value]:proxy.value}}
+    const next={...snapshot.settings,globalMode:globalProxy.value as NetworkSnapshot['settings']['globalMode'],proxyAddress:address.value,siteModes:{...snapshot.settings.siteModes,[site.value]:proxy.value as NetworkSnapshot['settings']['siteModes'][string]}}
     try{await window.moe.setNetwork(next);apply(await window.moe.network())}
     catch(error){apply(snapshot);report(String(error))}
     finally { updating = false; for (const field of [globalProxy, proxy, address]) field.disabled = false }
@@ -36,11 +36,19 @@ export function installNetworkUi(report: (text: string) => void, counts: Record<
     document.body.classList.toggle('pixiv-rank',rank&&site.value==='pixiv')
   }
   const showSite = (): void => {
-    const pixiv=site.value==='pixiv'
+    const pixiv=site.value==='pixiv', definition=sites[site.value], custom=!!definition.custom
+    const category=document.querySelector<HTMLSelectElement>('#custom-category')!
+    category.replaceChildren(...(definition.categories ?? []).map((name,index)=>new Option(name,String(index))));refresh(category)
+    document.querySelector<HTMLElement>('#custom-controls')!.hidden=!custom
+    document.body.dataset.customSite=String(custom)
+    document.body.classList.toggle('custom-no-keyword',custom&&!definition.keyword)
+    const toggle=document.querySelector<HTMLElement>('[data-select=site] .select-toggle')!
+    if(custom)toggle.style.backgroundImage=`url("${definition.icon ? `moe-image://site-icon/${encodeURIComponent(site.value)}` : '/assets/custom-site.png'}"),linear-gradient(#f1f1f1,#fff)`
+    else toggle.style.removeProperty('background-image')
     count.value=String(counts[site.value as SiteId])
     account.hidden=!pixiv;document.querySelector<HTMLElement>('#pixiv-controls')!.hidden=!pixiv;document.body.dataset.site=site.value
     document.querySelector<HTMLInputElement>('#keyword')!.value='';date.value='';document.querySelector<HTMLInputElement>('#start-page')!.value='1'
-    mode.value='tag';refresh(mode);showMode();document.querySelector<HTMLInputElement>('#keyword')!.disabled=false
+    mode.value='tag';refresh(mode);showMode();document.querySelector<HTMLInputElement>('#keyword')!.disabled=custom&&!definition.keyword
     document.body.classList.remove('pixiv-rank');apply(snapshot)
   }
   site.addEventListener('change',showSite);mode.onchange=showMode
@@ -48,5 +56,5 @@ export function installNetworkUi(report: (text: string) => void, counts: Record<
   account.oncontextmenu=event=>{event.preventDefault();void window.moe.logout(site.value as SiteId).then(()=>{report('已清除登录信息！');return window.moe.network()}).then(apply).catch(error=>report(String(error)))}
   const unsubscribe=window.moe.onNetwork(apply);window.addEventListener('unload',unsubscribe,{once:true})
   void window.moe.network().then(apply).catch(error=>report(String(error)))
-  return ()=>site.value==='pixiv'?{site:'pixiv',pixivMode:mode.value as SearchInput['pixivMode'],pixivKind:(mode.value==='rank'?kind.value:subcategory.value) as SearchInput['pixivKind'],pixivPeriod:(mode.value==='rank'?subcategory.value:'daily') as SearchInput['pixivPeriod'],pixivDate:date.value}:{site:site.value as SiteId}
+  return ()=>site.value==='pixiv'?{site:'pixiv',pixivMode:mode.value as SearchInput['pixivMode'],pixivKind:(mode.value==='rank'?kind.value:subcategory.value) as SearchInput['pixivKind'],pixivPeriod:(mode.value==='rank'?subcategory.value:'daily') as SearchInput['pixivPeriod'],pixivDate:date.value}:{site:site.value as SiteId,...(sites[site.value].custom?{customCategory:Number(document.querySelector<HTMLSelectElement>('#custom-category')!.value)}:{})}
 }

@@ -26,6 +26,11 @@ function button(label: string, action: () => void, title?: string): HTMLButtonEl
 
 async function startBrowser(): Promise<void> {
   const settings = await window.moe.init()
+  Object.assign(sites, settings.sites)
+  const siteSelect = $<HTMLSelectElement>('site')
+  for (const [id, definition] of Object.entries(settings.sites)) if (definition.custom) siteSelect.add(new Option(definition.name, id))
+  if (settings.customErrors.length) message(settings.customErrors.join('\n'))
+  $('custom-directory').onclick = () => { void window.moe.openCustomDirectory().then(() => message('修改自定义站点配置后，请重启应用')).catch(failure) }
   const networkInput = installNetworkUi(text => message(text), settings.siteCounts)
   const enqueue = await installDownloads(text => message(text))
   $<HTMLInputElement>('count').value = String(settings.count)
@@ -145,8 +150,8 @@ async function startBrowser(): Promise<void> {
       image.src = `moe-image://picture/${item.key}/thumbnail?retry=${Date.now()}`
     })
     const download = card.querySelector<HTMLButtonElement>('button[title="下载"]')!
-    download.disabled = !!item.unsupported || item.site === 'pixiv' && !item.original
-    const detail = item.site === 'pixiv' && !item.original && !item.unsupported ? window.moe.detail(item.key).then(detail => {
+    download.disabled = !!item.unsupported || (item.site === 'pixiv' || !!sites[item.site ?? 'konachan-g'].custom) && !item.original
+    const detail = (item.site === 'pixiv' || !!sites[item.site ?? 'konachan-g'].custom) && !item.original && !item.unsupported ? window.moe.detail(item.key).then(detail => {
       Object.assign(item, detail); download.disabled = false
       card.querySelector('.file-info')!.textContent = item.original.split('?')[0].split('.').at(-1) ?? ''
       card.querySelector<HTMLElement>('.image-count')!.hidden = !(item.pageCount && item.pageCount > 1)
@@ -214,6 +219,7 @@ async function startBrowser(): Promise<void> {
       const score = card.querySelector('.score')!, flame = document.createElement('i'); flame.textContent = '\uf06d'; score.append(flame, ` ${item.score}`)
       card.querySelector<HTMLElement>('.score')!.hidden = item.score === 0
       card.querySelector('.resolution')!.textContent = `${item.width} × ${item.height}`
+      card.querySelector<HTMLElement>('.resolution')!.hidden = !!sites[item.site ?? 'konachan-g'].custom && (!item.width || !item.height)
       const ext = item.original.split('?')[0].split('.').at(-1) ?? ''
       card.querySelector('.file-info')!.textContent = `${ext.length < 5 ? ext : ''}${item.bytes ? ` ${item.bytes < 1048576 ? `${Math.round(item.bytes / 1024)}kB` : `${Math.round(item.bytes / 1048576 * 100) / 100}MB`}` : ''}`
       card.querySelector('.image-id')!.textContent = item.title || String(item.id)
@@ -261,7 +267,7 @@ async function startBrowser(): Promise<void> {
     popup.hidden = true; menu.hidden = true; document.body.classList.add('has-search')
     const current = ++epoch; setBusy(true)
     try {
-      if (!next) { activeKeyword = value('keyword'); activeSite = networkInput().site ?? 'konachan-g'; const quality = $<HTMLSelectElement>('quality'); quality.replaceChildren(...(activeSite === 'pixiv' ? ['自动','原图','大图'] : activeSite === 'safebooru' ? ['原图','Jpeg图','预览图','自动'] : ['原图','预览图','自动']).map(label => new Option(label))); pages = []; currentPage = undefined; $('pictures').replaceChildren(); $('pages').replaceChildren(); selected.clear(); cards.clear(); visible = []; $('no-results').hidden = true; selection() }
+      if (!next) { activeKeyword = value('keyword'); activeSite = networkInput().site ?? 'konachan-g'; const quality = $<HTMLSelectElement>('quality'); quality.replaceChildren(...(activeSite === 'pixiv' ? ['自动','原图','大图'] : activeSite === 'safebooru' ? ['原图','Jpeg图','预览图','自动'] : sites[activeSite].custom ? ['原图','自动'] : ['原图','预览图','自动']).map(label => new Option(label))); pages = []; currentPage = undefined; $('pictures').replaceChildren(); $('pages').replaceChildren(); selected.clear(); cards.clear(); visible = []; $('no-results').hidden = true; selection() }
       const result = await (next ? window.moe.next() : window.moe.search(input()))
       if (current !== epoch) return
       pages.push(result); display(result)
@@ -308,7 +314,7 @@ async function startBrowser(): Promise<void> {
     void (async () => {
       const lines: string[] = []
       for (const item of list) {
-        if (item.site === 'pixiv' && !item.original) Object.assign(item, await window.moe.detail(item.key))
+        if ((item.site === 'pixiv' || !!sites[item.site ?? 'konachan-g'].custom) && !item.original) Object.assign(item, await window.moe.detail(item.key))
         for (const page of item.pages ?? [item]) { const url = quality === 'Jpeg图' ? item.large || item.preview : ['预览图','大图'].includes(quality) ? page.preview : page.original; if (url) lines.push(url) }
       }
       $<HTMLTextAreaElement>('collected').value += lines.map(url => `${url}\n`).join('')

@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { Appearance, BrowserApi, DownloadSnapshot, NetworkSnapshot } from '../shared/types'
 
 const api: BrowserApi = {
+  openCustomDirectory: () => ipcRenderer.invoke('moe:custom-directory'),
   setDisplaySettings: value => ipcRenderer.invoke('moe:display-settings', value),
   background: () => ipcRenderer.invoke('moe:background'),
   changeBackground: () => ipcRenderer.invoke('moe:change-background'),

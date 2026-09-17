@@ -13,3 +13,6 @@ MoeLoaderE 的站点解析、搜索分页、已读记录、下载队列/命名�
 
 - fast-xml-parser 5.11.1（MIT）用于 Safebooru 的 XML DAPI 响应解析，许可证随 npm 包保留。上游：https://github.com/NaturalIntelligence/fast-xml-parser 。
 - Safebooru 参数、字段与图标迁移基线见 `openspec/changes/port-safebooru/source-hashes.json`。
+
+- jsdom 30.0.1（MIT）用于自定义站点的静态 HTML/XPath 解析；不执行抓取页面脚本或加载子资源。上游：https://github.com/jsdom/jsdom 。
+- custom-site.png 来自 MoeLoaderP Assets/SiteIcon/default.png；自定义配置和 XPath 语义转写自 CustomSite.cs、CustomSiteConfig.cs 和 Ex.GetValue，基线见 openspec/changes/port-custom-sites/source-hashes.json。

@@ -1,15 +1,15 @@
-import type { NetworkSettings, SiteId, ProxyMode } from './types'
+import type { NetworkSettings, SiteId, ProxyMode, SiteDefinition } from './types'
 
-export const sites = {
+export const sites: Record<string, SiteDefinition> = {
   safebooru: { name: 'Safebooru', home: 'https://safebooru.org', login: '', hosts: ['safebooru.org', 'www.safebooru.org'] },
   'konachan-g': { name: 'Konachan-G', home: 'https://konachan.net', login: '', hosts: ['konachan.net', 'www.konachan.net', 'konachan.com', 'www.konachan.com'] },
   pixiv: { name: 'Pixiv', home: 'https://www.pixiv.net', login: 'https://accounts.pixiv.net/login', hosts: ['www.pixiv.net', 'accounts.pixiv.net', 'i.pximg.net', 's.pximg.net'] }
-} as const
-export function validSite(value: unknown): value is SiteId { return value === 'konachan-g' || value === 'pixiv' || value === 'safebooru' }
+}
+export function validSite(value: unknown): value is SiteId { return typeof value === 'string' && Object.hasOwn(sites, value) }
 export function allowedSiteUrl(value: string, site: SiteId): boolean {
   try {
     const u = new URL(value)
-    return u.protocol === 'https:' && !u.username && !u.password && !u.port && (sites[site].hosts as readonly string[]).includes(u.hostname)
+    return validSite(site) && (sites[site].custom ? ['http:', 'https:'].includes(u.protocol) : u.protocol === 'https:' && !u.port) && !u.username && !u.password && sites[site].hosts.includes(u.host)
   } catch { return false }
 }
 export function siteForUrl(value: string): SiteId {
@@ -27,16 +27,21 @@ export function proxyServer(address: string): string {
   return `${u.protocol}//${u.hostname}:${port}`
 }
 export function networkDefaults(): NetworkSettings {
-  return { globalMode: 'none', proxyAddress: '127.0.0.1:1080', siteModes: { 'konachan-g': 'default', pixiv: 'default', safebooru: 'default' } }
+  return { globalMode: 'none', proxyAddress: '127.0.0.1:1080', siteModes: Object.fromEntries(Object.keys(sites).map(site => [site, 'default'])) }
 }
 export function validateNetwork(value: unknown): NetworkSettings {
   if (!value || typeof value !== 'object') throw new Error('代理设置无效')
   const v = value as NetworkSettings, modes = ['none', 'custom', 'system']
   if (!modes.includes(v.globalMode) || !v.siteModes || !['default', ...modes].includes(v.siteModes['konachan-g']) || !['default', ...modes].includes(v.siteModes.pixiv)) throw new Error('代理模式无效')
-  const safebooru = v.siteModes.safebooru === undefined ? 'default' : v.siteModes.safebooru
-  if (!['default', ...modes].includes(safebooru)) throw new Error('代理模式无效')
+  const siteModes: NetworkSettings['siteModes'] = Object.fromEntries(Object.entries(v.siteModes).filter(([id, mode]) => /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(id) && ['default', ...modes].includes(mode)))
+  for (const site of Object.keys(sites)) {
+    const mode = v.siteModes[site] === undefined ? 'default' : v.siteModes[site]
+    if (!['default', ...modes].includes(mode)) throw new Error('代理模式无效')
+    siteModes[site] = mode
+  }
   proxyServer(v.proxyAddress)
-  return { globalMode: v.globalMode, proxyAddress: v.proxyAddress.trim(), siteModes: { 'konachan-g': v.siteModes['konachan-g'], pixiv: v.siteModes.pixiv, safebooru } }
+  return { globalMode: v.globalMode, proxyAddress: v.proxyAddress.trim(), siteModes }
+
 }
 export function proxyConfig(settings: NetworkSettings, site: SiteId): { mode: 'direct' | 'system' | 'fixed_servers'; proxyRules?: string; proxyBypassRules?: string } {
   const mode: ProxyMode = settings.siteModes[site] === 'default' ? settings.globalMode : settings.siteModes[site]

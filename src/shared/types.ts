@@ -1,4 +1,5 @@
 export interface SearchInput {
+  customCategory?: number
   site?: SiteId
   pixivMode?: 'rank' | 'tag' | 'author'
   pixivKind?: 'all' | 'illust' | 'manga' | 'ugoira'
@@ -13,6 +14,9 @@ export interface SearchInput {
   orientation: 0 | 1 | 2
 }
 export interface Picture {
+  customCategory?: number
+  thumbnailReferer?: string
+  previewReferer?: string
   site?: SiteId
   title?: string
   keyword?: string
@@ -21,7 +25,7 @@ export interface Picture {
   rank?: number
   tip?: string
   tipHighlight?: boolean
-  pages?: { original: string; preview: string }[]
+  pages?: { original: string; preview: string; referer?: string; previewReferer?: string }[]
   /** Assigned by the main process per result entry; the site's ID can repeat. */
   key: string
   id: number
@@ -56,7 +60,10 @@ export interface VisualPage {
 export interface SearchSettings { loadConcurrency: number; historyLimit: number; hideViewed: boolean }
 export interface BackgroundImage { url: string; width: number; height: number; align: 'left' | 'center' | 'right' }
 export interface DisplaySettings { showBackground: boolean; lowPerformance: boolean }
+export interface SiteDefinition { name: string; home: string; login: string; hosts: readonly string[]; custom?: boolean; categories?: string[]; keyword?: boolean; icon?: string }
 export interface BrowserState {
+  sites: Record<string, SiteDefinition>
+  customErrors: string[]
   displaySettings: DisplaySettings
   searchSettings: SearchSettings
   siteCounts: Record<SiteId, number>
@@ -67,6 +74,7 @@ export interface BrowserState {
   bounds?: { x: number; y: number; width: number; height: number }
 }
 export interface BrowserApi {
+  openCustomDirectory(): Promise<void>
   setDisplaySettings(value: DisplaySettings): Promise<void>
   background(): Promise<BackgroundImage | undefined>
   changeBackground(): Promise<BackgroundImage | undefined>
@@ -153,7 +161,7 @@ export interface DownloadTask {
 }
 export interface DownloadSnapshot { settings: DownloadSettings; tasks: DownloadTask[] }
 
-export type SiteId = 'konachan-g' | 'pixiv' | 'safebooru'
+export type SiteId = string
 export type ProxyMode = 'none' | 'custom' | 'system'
 export interface NetworkSettings { globalMode: ProxyMode; proxyAddress: string; siteModes: Record<SiteId, ProxyMode | 'default'> }
 export interface NetworkSnapshot { settings: NetworkSettings; loggedIn: Record<SiteId, boolean> }

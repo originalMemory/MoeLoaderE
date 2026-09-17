@@ -3,7 +3,7 @@ import { mkdir, open, link, unlink, realpath, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, isAbsolute, sep } from 'node:path'
 import { sites } from '../shared/network.ts'
 import { randomUUID } from 'node:crypto'
-import type { DownloadSettings, DownloadSource, DownloadTask, DownloadAction } from '../shared/types'
+import type { DownloadSettings, DownloadSource, DownloadTask, DownloadAction, SiteId } from '../shared/types'
 
 export function downloadDefaults(directory: string): DownloadSettings {
   return { directory, concurrency: 3, fileTemplate: '%site %id %title', folderTemplate: '%site\\%title', autoRename: false, tagCount: 0, firstOnly: false, firstCount: 1 }
@@ -49,8 +49,8 @@ export class DownloadQueue {
   settings: DownloadSettings
   private active = new Map<string, AbortController>()
   private changed: () => void
-  private request: (url: string, signal: AbortSignal, referer: string) => Promise<Response>
-  constructor(settings: DownloadSettings, request: (url: string, signal: AbortSignal, referer: string) => Promise<Response>, changed: () => void) {
+  private request: (url: string, signal: AbortSignal, referer: string, site?: SiteId) => Promise<Response>
+  constructor(settings: DownloadSettings, request: (url: string, signal: AbortSignal, referer: string, site?: SiteId) => Promise<Response>, changed: () => void) {
     this.settings = settings; this.request = request; this.changed = changed
   }
   add(sources: DownloadSource[]): DownloadTask[] {
@@ -133,7 +133,7 @@ export class DownloadQueue {
         let file: Awaited<ReturnType<typeof open>> | undefined
         let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
         try {
-          const response = await this.request(task.source.url, requestSignal, task.source.referer)
+          const response = await this.request(task.source.url, requestSignal, task.source.referer, task.source.site)
           if (!response.ok || !/^image\/(jpeg|png|gif|webp|avif)(;|$)/i.test(response.headers.get('content-type') || '')) {
             await response.body?.cancel(); throw new Error(`无效图片响应 (${response.status})`)
           }

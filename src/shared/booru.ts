@@ -1,4 +1,5 @@
 // Ported from MoeLoaderP: KonachanSite, MoeItem.LocalFilter, SearchSession and ViewedId (GPL-3.0).
+import { validSite } from './network.ts'
 import type { Picture, SearchInput, VisualPage } from './types'
 
 export const home = 'https://konachan.net'
@@ -9,12 +10,13 @@ export function validateSearch(value: unknown): SearchInput {
   for (const [key, min, max] of [['page', 1, 99999], ['count', 10, 500], ['minWidth', 1, 10000], ['minHeight', 1, 10000], ['orientation', 0, 2]] as const) {
     if (!Number.isInteger(v[key]) || v[key] < min || v[key] > max) throw new Error(`搜索参数 ${key} 越界`)
   }
-  if (v.site !== undefined && v.site !== 'konachan-g' && v.site !== 'pixiv' && v.site !== 'safebooru') throw new Error('站点无效')
+  if (v.site !== undefined && !validSite(v.site)) throw new Error('站点无效')
+  if (v.customCategory !== undefined && (!Number.isInteger(v.customCategory) || v.customCategory < 0 || v.customCategory > 99)) throw new Error('分类无效')
   if (v.site === 'pixiv') {
     if (!['rank','tag','author'].includes(v.pixivMode ?? 'tag') || !['all','illust','manga','ugoira'].includes(v.pixivKind ?? 'illust') || !['daily','weekly','monthly','rookie','original','male','female'].includes(v.pixivPeriod ?? 'daily')) throw new Error('Pixiv 分类无效')
     if (v.pixivDate && (!/^\d{4}-\d{2}-\d{2}$/.test(v.pixivDate) || !Number.isFinite(new Date(v.pixivDate).getTime()) || new Date(v.pixivDate).toISOString().slice(0,10) !== v.pixivDate)) throw new Error('日期无效')
   }
-  return { ...(v.site ? { site: v.site } : {}), ...(v.site === 'pixiv' ? { pixivMode:v.pixivMode ?? 'tag', pixivKind:v.pixivKind ?? 'illust', pixivPeriod:v.pixivPeriod ?? 'daily', pixivDate:v.pixivDate ?? '' } : {}), keyword: v.keyword, page: v.page, count: v.count, filterResolution: v.filterResolution, minWidth: v.minWidth, minHeight: v.minHeight, orientation: v.orientation }
+  return { ...(v.customCategory !== undefined ? {customCategory: v.customCategory} : {}), ...(v.site ? { site: v.site } : {}), ...(v.site === 'pixiv' ? { pixivMode:v.pixivMode ?? 'tag', pixivKind:v.pixivKind ?? 'illust', pixivPeriod:v.pixivPeriod ?? 'daily', pixivDate:v.pixivDate ?? '' } : {}), keyword: v.keyword, page: v.page, count: v.count, filterResolution: v.filterResolution, minWidth: v.minWidth, minHeight: v.minHeight, orientation: v.orientation }
 }
 export function query(input: SearchInput, page = input.page): string {
   if (input.site === 'safebooru') return `https://safebooru.org/index.php?${new URLSearchParams({ page: 'dapi', s: 'post', q: 'index', pid: String(page - 1), limit: String(input.count), tags: input.keyword })}`
