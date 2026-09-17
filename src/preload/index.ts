@@ -2,6 +2,12 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { Appearance, BrowserApi, DownloadSnapshot, NetworkSnapshot } from '../shared/types'
 
 const api: BrowserApi = {
+  onCustomCategories: callback => {
+    const listener = (_event: Electron.IpcRendererEvent, value: {site: string; names: string[]}) => callback(value.site, value.names)
+    ipcRenderer.on('moe:custom-categories-changed', listener)
+    return () => ipcRenderer.removeListener('moe:custom-categories-changed', listener)
+  },
+  customCategories: site => ipcRenderer.invoke('moe:custom-categories', site),
   openCustomDirectory: () => ipcRenderer.invoke('moe:custom-directory'),
   setDisplaySettings: value => ipcRenderer.invoke('moe:display-settings', value),
   background: () => ipcRenderer.invoke('moe:background'),

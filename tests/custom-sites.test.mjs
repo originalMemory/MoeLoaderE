@@ -31,7 +31,7 @@ test('原 XPath 取值变换、配置校验与详情循环保护',async()=>{
  }finally{dom.window.close()}
  const {definition}=validateCustomSite(config);sites[config.ShortName]=definition
  try{
-  for(const bad of [{...config,Config:{IsSupportAccount:true}},{...config,CustomLv2MenuItems:[{}]},{...config,HomeUrl:'file:///tmp/a'},{...config,PagePara:{...config.PagePara,DetailLv3ImageOriginUrl:rule('//img')}},{...config,AllowedHosts:['user:pass@host.test']}])assert.throws(()=>validateCustomSite(bad))
+  for(const bad of [{...config,Config:{IsSupportAccount:true},CookieLoginAuthKey:"bad key"},{...config,CustomLv2MenuItems:[{}]},{...config,HomeUrl:'file:///tmp/a'},{...config,PagePara:{...config.PagePara,DetailLv3ImageOriginUrl:rule('//img')}},{...config,AllowedHosts:['user:pass@host.test']}])assert.throws(()=>validateCustomSite(bad))
   const item={site:config.ShortName,detail:'https://konachan.net/art/1',customCategory:0}
   await assert.rejects(()=>resolveCustom(config,item,async()=>'<img class="original" src="/f.png"><span id="current">1</span><a id="next" href="1">2</a>',new AbortController().signal),/循环/)
   const level2={...config,PagePara:{...config.PagePara,DetailPageImagesNodes:rule('//a','Node'),DetailImageItemOriginUrlFromDetailImagesList:undefined,DetailImageItemDetailUrlFromDetailImagesList:rule('','Attribute','href'),DetailLv2ImageOriginUrl:rule('//img','Attribute','src'),DetailLv2ImagePreviewUrl:rule('//img','Attribute','data-preview',{Referer:'https://konachan.net/preview-ref'})}}

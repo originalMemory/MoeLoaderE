@@ -4,7 +4,7 @@
 
 - 技术路线：Electron + TypeScript。
 - 初始目标：Windows、macOS 桌面端；Linux 暂不考虑，移动端和浏览器版未纳入。
-- 当前状态：阶段 4 已提交推送，Pixiv 真实账号验收留到 Windows。阶段 5 已接通搜索设置与历史记录，新增 Safebooru 搜索/预览/下载已通过真实联网验证，背景图/低性能模式已接通，自定义站点第一批（静态分类/XPath/详情图组）已接通，完整回归 32/32 通过；其余站点和自定义登录/动态分类继续分批迁移。
+- 当前状态：阶段 4 已提交推送，Pixiv 真实账号验收留到 Windows。阶段 5 已接通搜索设置与历史记录，新增 Safebooru 搜索/预览/下载已通过真实联网验证，背景图/低性能模式已接通，自定义站点第一批（静态分类/XPath/详情图组）已接通，完整回归 32/32 通过；动态分类已完成定向验证；自定义网页登录已接通，登录/会话等 12 项定向验证通过；其余站点和第三级详情继续分批迁移。
 - 迁移原则：逻辑、UI 布局、样式、文案与交互保持源项目一致，差异逐项记录，不默默改变行为。
 
 ## 本地开发
@@ -62,6 +62,8 @@ Windows 材质通过 Koffi 在主进程调用窗口合成接口，使用原版 F
 - [第五阶段第三批：背景图与低性能模式](openspec/changes/port-display-settings/review.md)
 - [自定义站点使用指南](docs/custom-sites.md)
 - [第五阶段第四批：自定义站点](openspec/changes/port-custom-sites/review.md)
+- [自定义站点动态分类验收](openspec/changes/port-custom-menus/review.md)
+- [自定义站点网页登录验收](openspec/changes/port-custom-login/review.md)
 
 ## 登录与代理
 

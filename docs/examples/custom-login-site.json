@@ -1,0 +1,52 @@
+{
+  "ShortName": "my-gallery",
+  "DisplayName": "我的图站",
+  "HomeUrl": "https://example.com",
+  "AllowedHosts": [
+    "images.example.com"
+  ],
+  "Config": {
+    "IsSupportKeyword": true,
+    "IsSupportAccount": true
+  },
+  "SearchApi": "/search?q={keyword}&page={pagenum}",
+  "Categories": [
+    {
+      "Name": "最新",
+      "FirstPageApi": "/gallery",
+      "FollowUpPageApi": "/gallery?page={pagenum}"
+    }
+  ],
+  "PagePara": {
+    "MainPageImagesNodes": {
+      "Path": "//article",
+      "Mode": "Node",
+      "IsMultiValues": true
+    },
+    "ImageItemThumbnailUrlFromMainPageSingleImageNode": {
+      "Path": ".//img",
+      "Mode": "Attribute",
+      "Attribute": "src"
+    },
+    "ImageItemTitleFromSingleMainPageSingleImageNode": {
+      "Path": ".//a",
+      "Mode": "InnerText"
+    },
+    "ImageItemDetailUrlFromMainPageSingleImageNode": {
+      "Path": ".//a",
+      "Mode": "Attribute",
+      "Attribute": "href"
+    },
+    "DetailPageImagesNodes": {
+      "Path": "//img[@class='original']",
+      "Mode": "Node",
+      "IsMultiValues": true
+    },
+    "DetailImageItemOriginUrlFromDetailImagesList": {
+      "Mode": "Attribute",
+      "Attribute": "src"
+    }
+  },
+  "LoginUrl": "https://example.com/login",
+  "CookieLoginAuthKey": "session_id"
+}

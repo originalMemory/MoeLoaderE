@@ -1,0 +1,61 @@
+{
+  "ShortName": "my-dynamic-gallery",
+  "DisplayName": "动态分类图站",
+  "HomeUrl": "https://example.com",
+  "AllowedHosts": [
+    "images.example.com"
+  ],
+  "Config": {
+    "IsSupportKeyword": true
+  },
+  "SearchApi": "/search?q={keyword}&page={pagenum}",
+  "Categories": [],
+  "PagePara": {
+    "MainPageImagesNodes": {
+      "Path": "//article",
+      "Mode": "Node",
+      "IsMultiValues": true
+    },
+    "ImageItemThumbnailUrlFromMainPageSingleImageNode": {
+      "Path": ".//img",
+      "Mode": "Attribute",
+      "Attribute": "src"
+    },
+    "ImageItemTitleFromSingleMainPageSingleImageNode": {
+      "Path": ".//a",
+      "Mode": "InnerText"
+    },
+    "ImageItemDetailUrlFromMainPageSingleImageNode": {
+      "Path": ".//a",
+      "Mode": "Attribute",
+      "Attribute": "href"
+    },
+    "DetailPageImagesNodes": {
+      "Path": "//img[@class='original']",
+      "Mode": "Node",
+      "IsMultiValues": true
+    },
+    "DetailImageItemOriginUrlFromDetailImagesList": {
+      "Mode": "Attribute",
+      "Attribute": "src"
+    }
+  },
+  "CustomLv2MenuItems": [
+    {
+      "PageUrl": "https://example.com",
+      "Menus": {
+        "Path": "//nav/a",
+        "Mode": "Node"
+      },
+      "MenuTitleFromMenus": {
+        "Mode": "InnerText"
+      },
+      "MenuUrlFromMenus": {
+        "Mode": "Attribute",
+        "Attribute": "href"
+      },
+      "FirstApi": "/index.html",
+      "FollowApi": "/page/{pagenum}.html"
+    }
+  ]
+}

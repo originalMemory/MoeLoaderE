@@ -9,7 +9,8 @@ import type { Viewed } from '../shared/booru'
 interface XPathRule { Path?: string; PathR2?: string; Mode: 'Node' | 'Attribute' | 'InnerText'; Attribute?: string; Pre?: string; After?: string; IsMultiValues?: boolean; RegexPattern?: string; Replace?: string; ReplaceTo?: string; Referer?: string; GetFileName?: boolean; GetNumFromMatches?: number }
 type PageRules = Record<string, XPathRule | undefined>
 interface Category { Name: string; FirstPageApi: string; FollowUpPageApi: string; OverrideSearchApi?: string; OverridePagePara?: PageRules }
-export interface CustomSite { ShortName: string; DisplayName: string; HomeUrl: string; SearchApi?: string; Categories: Category[]; PagePara: PageRules; Config?: { IsSupportKeyword?: boolean; IsSupportAccount?: boolean; IsR18Site?: boolean }; AllowedHosts?: string[] }
+interface CustomMenu { Menus: XPathRule; MenuTitleFromMenus: XPathRule; MenuUrlFromMenus: XPathRule; PageUrl: string; FirstApi: string; FollowApi: string; FollowApiReplaceFrom?: string; FollowApiReplaceTo?: string; OverridePagePara?: PageRules }
+export interface CustomSite { CustomLv2MenuItems?: CustomMenu[]; ShortName: string; DisplayName: string; HomeUrl: string; SearchApi?: string; Categories: Category[]; PagePara: PageRules; Config?: { IsSupportKeyword?: boolean; IsSupportAccount?: boolean; IsR18Site?: boolean }; AllowedHosts?: string[] }
 const ruleNames = ['MainPageImagesNodes','ImageItemThumbnailUrlFromMainPageSingleImageNode','ImageItemTitleFromSingleMainPageSingleImageNode','ImageItemDetailUrlFromMainPageSingleImageNode','ImageItemDateTimeFromMainPageSingleImageNode','ImagesCountFromMainPageSingleImageNode','DetailPageImagesNodes','DetailPageImageItemThumbnailUrlFromSingleDetailPageImageNodes','DetailImageItemOriginUrlFromDetailImagesList','DetailImageItemDetailUrlFromDetailImagesList','DetailCurrentPageIndex','DetailNextPageIndex','DetailNextPageUrl','DetailMaxPageIndex','DetailImagesCount','DetailLv2ImageOriginUrl','DetailLv2ImagePreviewUrl']
 const document = (): Document => new JSDOM('').window.document
 function select(root: Node, rule?: XPathRule): Node[] {
@@ -37,13 +38,13 @@ export function customValue(root: Node, rule?: XPathRule): string {
   if(rule.GetNumFromMatches!==undefined)value=value.match(/[0-9]+/g)?.at(rule.GetNumFromMatches) ?? value
   return value
 }
-function validateRules(value: unknown): PageRules {
+function validateRules(value: unknown, kind: 'page' | 'menu' = 'page'): PageRules {
   if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('PagePara 无效')
   const rules:PageRules={};const doc=document()
   try {
     for(const [key,rule] of Object.entries(value)){
       if(rule==null)continue
-      if(!ruleNames.includes(key))throw new Error(`尚不支持 PagePara.${key}`)
+      if(!(kind==='page'?ruleNames:['Menus','MenuTitleFromMenus','MenuUrlFromMenus']).includes(key))throw new Error(`尚不支持 PagePara.${key}`)
       if(typeof rule!=='object'||!['Node','Attribute','InnerText'].includes(rule.Mode))throw new Error(`${key} 的 XPath Mode 无效`)
       for(const field of ['Path','PathR2','Attribute','Pre','After','RegexPattern','Replace','ReplaceTo','Referer'])if(rule[field]!=null&&(typeof rule[field]!=='string'||rule[field].length>4096))throw new Error(`${key}.${field} 无效`)
       if(rule.IsMultiValues && rule.Mode!=='Node')throw new Error(`${key} 的多值文本尚不支持，请使用 Node 集合逐项提取`)
@@ -55,6 +56,11 @@ function validateRules(value: unknown): PageRules {
       rules[key]=Object.fromEntries(Object.entries(rule).filter(([,v])=>v!=null)) as unknown as XPathRule
     }
   } finally { doc.defaultView?.close() }
+  if(kind==='menu'){
+    for(const key of ['Menus','MenuTitleFromMenus','MenuUrlFromMenus'])if(!rules[key])throw new Error(`缺少 ${key}`)
+    if(rules.Menus!.Mode!=='Node'||!rules.Menus!.Path)throw new Error('Menus 需要 Node 模式和 Path')
+    return rules
+  }
   for(const key of ['MainPageImagesNodes','ImageItemThumbnailUrlFromMainPageSingleImageNode','ImageItemDetailUrlFromMainPageSingleImageNode','DetailPageImagesNodes'])if(!rules[key])throw new Error(`缺少 ${key}`)
   for(const key of ['MainPageImagesNodes','DetailPageImagesNodes'])if(rules[key]?.Mode!=='Node')throw new Error(`${key} 必须使用 Node 模式`)
   if(!rules.DetailImageItemOriginUrlFromDetailImagesList && !(rules.DetailImageItemDetailUrlFromDetailImagesList&&rules.DetailLv2ImageOriginUrl))throw new Error('缺少原图或第二级详情规则')
@@ -67,11 +73,12 @@ export function validateCustomSite(raw: any): { config: CustomSite; definition: 
   if(!['https:','http:'].includes(home.protocol)||home.username||home.password)throw new Error('HomeUrl 必须为 HTTP(S) 地址')
   if(raw.Config!==undefined&&(!raw.Config||typeof raw.Config!=='object'||Array.isArray(raw.Config)))throw new Error('Config 无效')
   for(const key of ['IsSupportKeyword','IsSupportAccount','IsR18Site'])if(raw.Config?.[key]!=null&&typeof raw.Config[key]!=='boolean')throw new Error(`Config.${key} 必须为布尔值`)
-  if(raw.Config?.IsSupportAccount || raw.LoginUrl || raw.CookieLoginAuthKey)throw new Error('自定义站点网页登录尚未迁移')
+  if(raw.CookieLoginAuthKey!=null&&(typeof raw.CookieLoginAuthKey!=='string'||!/^\S{1,256}$/.test(raw.CookieLoginAuthKey)))throw new Error('CookieLoginAuthKey 无效')
   if(raw.Config?.IsR18Site)throw new Error('自定义站点 NSFW 模式尚未迁移')
-  if(raw.CustomLv2MenuItems?.length)throw new Error('动态分类尚未迁移，请使用静态 Categories')
-  if(!Array.isArray(raw.Categories)||!raw.Categories.length||raw.Categories.length>100)throw new Error('需要 1–100 个静态 Categories')
-  const page=raw.Categories.some((category:any)=>category?.OverridePagePara==null)?validateRules(raw.PagePara):{}
+  if(raw.CustomLv2MenuItems!=null&&(!Array.isArray(raw.CustomLv2MenuItems)||raw.CustomLv2MenuItems.length>16))throw new Error('CustomLv2MenuItems 最多 16 个菜单源')
+  const dynamic=!!raw.CustomLv2MenuItems?.length
+  if(!dynamic&&(!Array.isArray(raw.Categories)||!raw.Categories.length||raw.Categories.length>100))throw new Error('需要 1–100 个静态 Categories')
+  const page=(dynamic?raw.CustomLv2MenuItems:raw.Categories).some((category:any)=>category?.OverridePagePara==null)?validateRules(raw.PagePara):{}
   const hosts=new Set<string>([home.host])
   const checkUrl=(value: unknown):string=>{
     if(typeof value!=='string'||value.length>4096)throw new Error('分类/API 地址无效')
@@ -79,16 +86,25 @@ export function validateCustomSite(raw: any): { config: CustomSite; definition: 
     if(!['http:','https:'].includes(url.protocol)||url.username||url.password)throw new Error('配置包含非 HTTP(S) 地址')
     hosts.add(url.host);return value
   }
-  const categories=raw.Categories.map((category:any)=>{
+  const categories=(dynamic?[]:raw.Categories).map((category:any)=>{
     if(typeof category?.Name!=='string'||!category.Name||category.Name.length>100)throw new Error('分类 Name 无效')
     return {Name:category.Name,FirstPageApi:checkUrl(category.FirstPageApi),FollowUpPageApi:checkUrl(category.FollowUpPageApi),...(category.OverrideSearchApi?{OverrideSearchApi:checkUrl(category.OverrideSearchApi)}:{}),...(category.OverridePagePara!=null?{OverridePagePara:validateRules(category.OverridePagePara)}:{})}
   })
+  const menus:CustomMenu[]=(raw.CustomLv2MenuItems||[]).map((menu:any)=>{
+    if(!menu||typeof menu!=='object')throw new Error('动态菜单配置无效')
+    const rules=validateRules({Menus:menu.Menus,MenuTitleFromMenus:menu.MenuTitleFromMenus,MenuUrlFromMenus:menu.MenuUrlFromMenus},'menu')
+    for(const key of ['FirstApi','FollowApi','FollowApiReplaceFrom','FollowApiReplaceTo'])if(menu[key]!=null&&(typeof menu[key]!=='string'||menu[key].length>4096))throw new Error(`${key} 无效`)
+    if(menu.FollowApiReplaceFrom==='')throw new Error('FollowApiReplaceFrom 不能为空')
+    for(const rule of Object.values(rules))if(rule){if(rule.Pre?.startsWith('http'))checkUrl(rule.Pre);if(rule.Referer)checkUrl(rule.Referer)}
+    return {Menus:{...rules.Menus!,IsMultiValues:true},MenuTitleFromMenus:rules.MenuTitleFromMenus!,MenuUrlFromMenus:rules.MenuUrlFromMenus!,PageUrl:checkUrl(menu.PageUrl??raw.HomeUrl),FirstApi:menu.FirstApi??'',FollowApi:menu.FollowApi??'',FollowApiReplaceFrom:menu.FollowApiReplaceFrom,FollowApiReplaceTo:menu.FollowApiReplaceTo,...(menu.OverridePagePara!=null?{OverridePagePara:validateRules(menu.OverridePagePara)}:{})}
+  })
   const search=raw.SearchApi?checkUrl(raw.SearchApi):undefined
-  for(const rules of [page,...categories.map((cat:Category)=>cat.OverridePagePara).filter(Boolean)])for(const rule of Object.values(rules as PageRules))if(rule){if(rule.Pre?.startsWith('http'))checkUrl(rule.Pre);if(rule.Referer)checkUrl(rule.Referer)}
+  for(const rules of [page,...categories.map((cat:Category)=>cat.OverridePagePara).filter(Boolean),...menus.map(menu=>menu.OverridePagePara).filter(Boolean)])for(const rule of Object.values(rules as PageRules))if(rule){if(rule.Pre?.startsWith('http'))checkUrl(rule.Pre);if(rule.Referer)checkUrl(rule.Referer)}
   if(raw.AllowedHosts!==undefined){if(!Array.isArray(raw.AllowedHosts)||raw.AllowedHosts.length>50)throw new Error('AllowedHosts 无效');for(const host of raw.AllowedHosts){if(typeof host!=='string'||new URL(`https://${host}`).host!==host)throw new Error('AllowedHosts 必须为主机名（可含端口）');hosts.add(host)}}
+  const login=raw.Config?.IsSupportAccount?new URL(checkUrl(raw.LoginUrl||raw.HomeUrl),home).href:''
   const icon=raw.SiteIconUrl?new URL(checkUrl(raw.SiteIconUrl),home).href:undefined
-  const config={ShortName:raw.ShortName,DisplayName:raw.DisplayName,HomeUrl:home.href,SearchApi:search,PagePara:page,Categories:categories,Config:raw.Config}
-  return {config,definition:{name:config.DisplayName,home:home.href,login:'',hosts:[...hosts],custom:true,icon,categories:categories.map((cat:Category)=>cat.Name),keyword:raw.Config?.IsSupportKeyword!==false&&!!(search||categories.some((cat:Category)=>cat.OverrideSearchApi))}}
+  const config={ShortName:raw.ShortName,DisplayName:raw.DisplayName,HomeUrl:home.href,SearchApi:search,PagePara:page,Categories:categories,Config:raw.Config,CustomLv2MenuItems:menus}
+  return {config,definition:{name:config.DisplayName,home:home.href,login,cookieAuthKey:raw.CookieLoginAuthKey??undefined,hosts:[...hosts],custom:true,icon,dynamicCategories:dynamic,categories:categories.map((cat:Category)=>cat.Name),keyword:raw.Config?.IsSupportKeyword!==false&&!!(search||categories.some((cat:Category)=>cat.OverrideSearchApi))}}
 }
 export function loadCustomSites(directory: string): { configs: Map<string,CustomSite>; errors: string[] } {
   const configs=new Map<string,CustomSite>(),errors:string[]=[]
@@ -111,6 +127,32 @@ function urlValue(root:Node,rule:XPathRule|undefined,base:string,site:string):st
   return url
 }
 function referer(rule:XPathRule|undefined,base:string,site:string):string { const value=new URL(rule?.Referer||base,base).href;if(!allowedSiteUrl(value,site))throw new Error('Referer 主机未声明');return value }
+export async function loadCustomCategories(config:CustomSite,get:Get,signal:AbortSignal):Promise<Category[]> {
+  const categories:Category[]=[]
+  for(const menu of config.CustomLv2MenuItems??[]){
+    signal.throwIfAborted()
+    const pageUrl=new URL(menu.PageUrl,config.HomeUrl).href
+    const html=await get(pageUrl);signal.throwIfAborted()
+    const dom=new JSDOM(html,{url:pageUrl})
+    try{
+      for(const node of select(dom.window.document,menu.Menus)){
+        const name=customValue(node,menu.MenuTitleFromMenus).trim()
+        if(!name||name==='首页')continue
+        const url=urlValue(node,menu.MenuUrlFromMenus,pageUrl,config.ShortName)
+        if(!url||url===new URL(config.HomeUrl).href)continue
+        const first=url+menu.FirstApi
+        let follow=url+menu.FollowApi
+        if(menu.FollowApiReplaceFrom)follow=follow.split(menu.FollowApiReplaceFrom).join(menu.FollowApiReplaceTo??'')
+        for(const template of [first,follow])if(!allowedSiteUrl(template.replaceAll('{pagenum-1}','0').replaceAll('{pagenum}','1'),config.ShortName))throw new Error('动态分类 API 主机未声明')
+        categories.push({Name:name,FirstPageApi:first,FollowUpPageApi:follow,...(menu.OverridePagePara?{OverridePagePara:menu.OverridePagePara}:{})})
+        if(categories.length>100)throw new Error('动态分类超过 100 个')
+      }
+    }finally{dom.window.close()}
+  }
+  signal.throwIfAborted()
+  if(!categories.length)throw new Error('动态分类没有找到可用菜单，请检查 XPath 或站点响应')
+  return categories
+}
 export async function customVisualPage(config:CustomSite,input:SearchInput,page:number,index:number,offset:number,viewed:Pick<Viewed, 'has' | 'add'>,get:Get,signal:AbortSignal):Promise<VisualPage>{
   const category=config.Categories[input.customCategory??0];if(!category)throw new Error('自定义分类无效')
   const rules=category.OverridePagePara||config.PagePara,result:VisualPage={index,firstPage:page,nextPage:page,complete:false,items:[],realPages:[]}

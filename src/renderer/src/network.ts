@@ -35,10 +35,34 @@ export function installNetworkUi(report: (text: string) => void, counts: Record<
     document.querySelector<HTMLInputElement>('#keyword')!.disabled=rank
     document.body.classList.toggle('pixiv-rank',rank&&site.value==='pixiv')
   }
+  const applyCategories = (selectedSite: string, names: string[]): void => {
+    sites[selectedSite].categories=names
+    if(site.value!==selectedSite)return
+    const category=document.querySelector<HTMLSelectElement>('#custom-category')!
+    const index=category.disabled?0:Math.max(0,category.selectedIndex)
+    category.replaceChildren(...names.map((name,index)=>new Option(name,String(index))))
+    category.selectedIndex=Math.min(index,names.length-1);category.disabled=false;refresh(category)
+  }
+  const unsubscribeCategories=window.moe.onCustomCategories(applyCategories)
+  window.addEventListener('unload',unsubscribeCategories,{once:true})
+  let siteEpoch = 0
   const showSite = (): void => {
+    const epoch=++siteEpoch, selectedSite=site.value
     const pixiv=site.value==='pixiv', definition=sites[site.value], custom=!!definition.custom
     const category=document.querySelector<HTMLSelectElement>('#custom-category')!
     category.replaceChildren(...(definition.categories ?? []).map((name,index)=>new Option(name,String(index))));refresh(category)
+    category.disabled=false
+    if(definition.dynamicCategories){
+      category.replaceChildren(new Option('加载中…',''));category.disabled=true;refresh(category)
+      void window.moe.customCategories(selectedSite).then(names=>{
+        definition.categories=names
+        if(epoch!==siteEpoch)return
+        applyCategories(selectedSite,names)
+      }).catch(error=>{
+        if(epoch!==siteEpoch)return
+        category.replaceChildren(new Option('加载失败',''));refresh(category);report(String(error))
+      })
+    }
     document.querySelector<HTMLElement>('#custom-controls')!.hidden=!custom
     document.body.dataset.customSite=String(custom)
     document.body.classList.toggle('custom-no-keyword',custom&&!definition.keyword)
@@ -46,7 +70,7 @@ export function installNetworkUi(report: (text: string) => void, counts: Record<
     if(custom)toggle.style.backgroundImage=`url("${definition.icon ? `moe-image://site-icon/${encodeURIComponent(site.value)}` : '/assets/custom-site.png'}"),linear-gradient(#f1f1f1,#fff)`
     else toggle.style.removeProperty('background-image')
     count.value=String(counts[site.value as SiteId])
-    account.hidden=!pixiv;document.querySelector<HTMLElement>('#pixiv-controls')!.hidden=!pixiv;document.body.dataset.site=site.value
+    account.hidden=!definition.login;document.querySelector<HTMLElement>('#pixiv-controls')!.hidden=!pixiv;document.body.dataset.site=site.value
     document.querySelector<HTMLInputElement>('#keyword')!.value='';date.value='';document.querySelector<HTMLInputElement>('#start-page')!.value='1'
     mode.value='tag';refresh(mode);showMode();document.querySelector<HTMLInputElement>('#keyword')!.disabled=custom&&!definition.keyword
     document.body.classList.remove('pixiv-rank');apply(snapshot)

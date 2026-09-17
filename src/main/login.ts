@@ -2,14 +2,15 @@ import { BrowserWindow, WebContentsView, ipcMain, app } from 'electron'
 import type { IpcMainInvokeEvent } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { sites } from '../shared/network'
+import { sites, allowedSiteUrl } from '../shared/network'
 import { installAppearance } from './appearance'
 import { SiteNetwork } from './network'
-import type { LoginStatus } from '../shared/types'
+import type { LoginStatus, SiteId } from '../shared/types'
 
-export function installLogin(network: SiteNetwork, main: () => BrowserWindow | undefined): () => Promise<void> {
+export function installLogin(network: SiteNetwork, main: () => BrowserWindow | undefined): (site: SiteId) => Promise<void> {
   let current: { window: BrowserWindow; view: WebContentsView; controller: AbortController; verifying: boolean; status: LoginStatus } | undefined
   let opening: Promise<void> | undefined
+  let openingSite: SiteId | undefined
   let closingForQuit = false
   app.on('before-quit', event => {
     if (!current) return
@@ -28,23 +29,26 @@ export function installLogin(network: SiteNetwork, main: () => BrowserWindow | u
     return current
   }
   const publish = (entry: NonNullable<typeof current>, state: LoginStatus['state'], text: string): void => {
-    entry.status = { site: 'pixiv', state, text }
+    entry.status = { site: entry.status.site, state, text }
     if (!entry.window.isDestroyed()) entry.window.webContents.send('login:status', entry.status)
   }
-  const allowedNavigation = (url: string): boolean => {
+  const allowedNavigation = (url: string, site: SiteId): boolean => {
+    if (site !== 'pixiv') return allowedSiteUrl(url, site)
     try {
       const u = new URL(url)
       return u.protocol === 'https:' && !u.username && !u.password && !u.port && ['accounts.pixiv.net', 'www.pixiv.net', 'accounts.google.com', 'appleid.apple.com', 'api.twitter.com', 'twitter.com', 'x.com'].includes(u.hostname)
     } catch { return false }
   }
   ipcMain.handle('login:init', event => authorize(event).status)
-  ipcMain.handle('login:navigate', event => { const entry = authorize(event); if (entry.verifying) return; return entry.view.webContents.loadURL(sites.pixiv.login).catch(() => publish(entry, 'failed', '登录页面加载失败，请检查网络后重试')) })
+  ipcMain.handle('login:navigate', event => { const entry = authorize(event); if (entry.verifying) return; return entry.view.webContents.loadURL(sites[entry.status.site].login).catch(() => publish(entry, 'failed', '登录页面加载失败，请检查网络后重试')) })
   ipcMain.handle('login:verify', async event => {
     const entry = authorize(event)
     if (entry.verifying) return
     entry.verifying = true; publish(entry, 'verifying', '认证中，请稍候')
     try {
-      await network.commitPixiv(entry.view.webContents.session, AbortSignal.any([entry.controller.signal, AbortSignal.timeout(40000)]))
+      const signal = AbortSignal.any([entry.controller.signal, AbortSignal.timeout(40000)])
+      if (entry.status.site === 'pixiv') await network.commitPixiv(entry.view.webContents.session, signal)
+      else await network.commitCustom(entry.view.webContents.session, signal)
       if (entry.controller.signal.aborted) return
       for (let seconds = 4; seconds > 0; seconds--) {
         publish(entry, 'success', `认证成功，${seconds}秒后将关闭窗口`)
@@ -60,11 +64,12 @@ export function installLogin(network: SiteNetwork, main: () => BrowserWindow | u
       }
     } finally { entry.verifying = false }
   })
-  return () => {
-    if (current && !current.window.isDestroyed()) { current.window.focus(); return Promise.resolve() }
-    if (opening) return opening
+  return site => {
+    if (current && !current.window.isDestroyed()) { if (current.status.site !== site) throw new Error('请先关闭当前登录窗口'); current.window.focus(); return Promise.resolve() }
+    if (opening) { if (openingSite !== site) throw new Error('请先关闭当前登录窗口'); return opening }
+    openingSite = site
     opening = (async () => {
-      const candidate = await network.candidate('pixiv')
+      const candidate = await network.candidate(site)
       const parent = main()
       if (!parent || parent.isDestroyed()) { await network.discard(candidate); return }
       const ownerBounds = parent.getBounds()
@@ -72,15 +77,15 @@ export function installLogin(network: SiteNetwork, main: () => BrowserWindow | u
         webPreferences:{ preload:join(__dirname,'../preload/login.js'), sandbox:true, contextIsolation:true, nodeIntegration:false } })
       installAppearance(window, false)
       const view = new WebContentsView({ webPreferences:{ session:candidate, sandbox:true, contextIsolation:true, nodeIntegration:false, webSecurity:true } })
-      const entry: NonNullable<typeof current> = { window, view, controller:new AbortController(), verifying:false, status:{site:'pixiv',state:'idle',text:''} }; current = entry
+      const entry: NonNullable<typeof current> = { window, view, controller:new AbortController(), verifying:false, status:{site,state:'idle',text:''} }; current = entry
       window.contentView.addChildView(view)
       const resize = (): void => { const [width,height] = window.getContentSize(); view.setBounds({ x:0,y:50,width,height:Math.max(0,height-50) }) }
       resize(); window.on('resize',resize)
       window.webContents.setWindowOpenHandler(()=>({action:'deny'}))
       window.webContents.on('will-navigate',event=>event.preventDefault())
-      view.webContents.on('will-navigate',(event,url)=>{if(!allowedNavigation(url)){event.preventDefault();publish(entry,'failed','此登录方式的跳转地址尚不支持，请使用 Pixiv 账号登录')}})
-      view.webContents.on('will-redirect',(event,url)=>{if(!allowedNavigation(url)){event.preventDefault();publish(entry,'failed','此登录方式的跳转地址尚不支持，请使用 Pixiv 账号登录')}})
-      view.webContents.setWindowOpenHandler(({url})=>{if(allowedNavigation(url))void view.webContents.loadURL(url).catch(()=>{});return {action:'deny'}})
+      view.webContents.on('will-navigate',(event,url)=>{if(!allowedNavigation(url, site)){event.preventDefault();publish(entry,'failed','此登录方式的跳转地址尚不支持，请检查站点登录地址配置')}})
+      view.webContents.on('will-redirect',(event,url)=>{if(!allowedNavigation(url, site)){event.preventDefault();publish(entry,'failed','此登录方式的跳转地址尚不支持，请检查站点登录地址配置')}})
+      view.webContents.setWindowOpenHandler(({url})=>{if(allowedNavigation(url, site))void view.webContents.loadURL(url).catch(()=>{});return {action:'deny'}})
       view.webContents.on('will-attach-webview',event=>event.preventDefault())
       view.webContents.on('did-fail-load',(_e,code,_description,_url,isMainFrame)=>{if(isMainFrame&&code!==-3&&!entry.verifying)publish(entry,'failed','登录页面加载失败，请检查网络后重试')})
       window.on('closed',()=>{
@@ -91,9 +96,9 @@ export function installLogin(network: SiteNetwork, main: () => BrowserWindow | u
       })
       try {
         await window.loadURL(toolbarUrl()); if (process.platform === 'darwin') parent.setEnabled(false); window.show()
-        await view.webContents.loadURL(sites.pixiv.login).catch(()=>publish(entry,'failed','登录页面加载失败，请检查网络后重试'))
+        await view.webContents.loadURL(sites[site].login).catch(()=>publish(entry,'failed','登录页面加载失败，请检查网络后重试'))
       } catch (error) { if (!window.isDestroyed()) window.close(); throw error }
-    })().finally(()=>{opening=undefined})
+    })().finally(()=>{opening=undefined;openingSite=undefined})
     return opening
   }
 }

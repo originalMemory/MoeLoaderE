@@ -16,7 +16,7 @@ import { installLogin } from './login'
 import { allowedSiteUrl, siteForUrl, sites, validSite } from '../shared/network'
 import { pixivVisualPage, resolvePixiv } from '../shared/pixiv'
 import { parseSafebooruXml } from '../shared/safebooru'
-import { loadCustomSites, customVisualPage, resolveCustom } from './custom-sites'
+import { loadCustomSites, customVisualPage, resolveCustom, loadCustomCategories } from './custom-sites'
 import { BackgroundImages } from './background'
 import { restoreSearchSettings, validateSearchSettings } from '../shared/search-settings'
 
@@ -139,6 +139,27 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
   const getJson = async (url: string, signal: AbortSignal, referer?: string): Promise<any> => JSON.parse(new TextDecoder().decode(await limitedBody(await siteResponse(url, AbortSignal.any([signal, AbortSignal.timeout(40_000)]), referer), 8 * 1024 * 1024)))
   const getSafebooru = async (url: string, signal: AbortSignal, root: 'posts' | 'tags'): Promise<Record<string, string>[]> => parseSafebooruXml(new TextDecoder().decode(await limitedBody(await siteResponse(url, AbortSignal.any([signal, AbortSignal.timeout(40000)])), 8 * 1024 * 1024)), root)
   const getCustomHtml = async (site: string, url: string, signal: AbortSignal, referer?: string): Promise<string> => new TextDecoder().decode(await limitedBody(await siteResponse(url, AbortSignal.any([signal, AbortSignal.timeout(40000)]), referer, true, site), 2 * 1024 * 1024))
+  const categoryLoads = new Map<string, Promise<void>>()
+  const ensureCategories = async (site: string): Promise<void> => {
+    const config=custom.configs.get(site)
+    if(!config)throw new Error('自定义站点不存在')
+    if(!config.CustomLv2MenuItems?.length||config.Categories.length)return
+    let pending=categoryLoads.get(site)
+    if(!pending){
+      const signal=AbortSignal.timeout(40000)
+      pending=loadCustomCategories(config,(url,referer)=>getCustomHtml(site,url,signal,referer),signal).then(categories=>{
+        config.Categories=categories;sites[site].categories=categories.map(category=>category.Name)
+        const window=main();if(window&&!window.isDestroyed())window.webContents.send('moe:custom-categories-changed',{site,names:sites[site].categories})
+      }).finally(()=>categoryLoads.delete(site))
+      categoryLoads.set(site,pending)
+    }
+    await pending
+  }
+  handle('custom-categories', async (_event, site) => {
+    if(typeof site!=='string'||!custom.configs.has(site))throw new Error('自定义站点无效')
+    await ensureCategories(site)
+    return custom.configs.get(site)!.Categories.map(category=>category.Name)
+  })
   const details = new Map<string, Promise<Picture>>()
   const detail = async (key: unknown, captured?: Picture): Promise<Picture> => {
     if (typeof key !== 'string') throw new Error('图片无效')
@@ -169,6 +190,7 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
       const viewed = viewedBySite[currentInput.site ?? 'konachan-g']
       if (currentInput.site === 'pixiv' && !(await network.snapshot()).loggedIn.pixiv) throw new Error('需要重新登录Pixiv站点才能开始搜索')
       const config = custom.configs.get(currentInput.site ?? '')
+      if(config){await ensureCategories(config.ShortName);signal.throwIfAborted()}
       const page = config ? await customVisualPage(config, currentInput, nextPage, pageIndex + 1, offset, {has: id => customHistorical[config.ShortName].has(id), add: id => { const set=customViewed[config.ShortName]; set.add(id); if(set.size>10000)set.delete(set.values().next().value!) }}, (url, referer) => getCustomHtml(config.ShortName, url, signal, referer), signal) : currentInput.site === 'pixiv'
         ? await pixivVisualPage(currentInput, nextPage, pageIndex + 1, offset, viewed, (url, referer) => getJson(url, signal, referer), signal, pixivCursor)
         : await visualPage(currentInput, nextPage, pageIndex + 1, offset, viewed, u => currentInput.site === 'safebooru' ? getSafebooru(u, signal, 'posts') : getJson(u, signal), signal)
@@ -182,7 +204,7 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
   handle('custom-directory', async () => { mkdirSync(customDirectory, {recursive: true}); const error=await shell.openPath(customDirectory); if(error)throw new Error(error) })
   handle('network', () => network.snapshot())
   handle('set-network', (_event, value) => network.update(value))
-  handle('login', (_event, site) => { if (site !== 'pixiv') throw new Error('该站点不支持账号'); return openLogin() })
+  handle('login', (_event, site) => { if (!validSite(site) || !sites[site].login) throw new Error('该站点不支持账号'); return openLogin(site) })
   handle('logout', (_event, site) => { if (!validSite(site)) throw new Error('站点无效'); return network.logout(site) })
   handle('detail', (_event, key) => detail(key))
   handle('enqueue', async (_event, value) => {

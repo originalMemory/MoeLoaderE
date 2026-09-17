@@ -23,7 +23,8 @@ export class SiteNetwork {
   private sessions: Record<SiteId, Session>
   private candidates = new Map<Session, SiteId>()
   private ready: Promise<unknown> = Promise.resolve()
-  private verified = false
+  private verified = new Set<SiteId>()
+  private authRevision = new Map<SiteId, number>()
   private configurationError: Error | undefined
   private file: string
   private changed: (snapshot: NetworkSnapshot) => void
@@ -31,17 +32,18 @@ export class SiteNetwork {
     this.file = join(app.getPath('userData'), 'network.json')
     const saved = existsSync(this.file) ? JSON.parse(readFileSync(this.file, 'utf8')) : undefined
     this.settings = saved ? validateNetwork(saved.settings) : networkDefaults()
-    this.verified = saved?.pixivVerified === true
+    if (saved?.pixivVerified === true) this.verified.add('pixiv')
+    if (Array.isArray(saved?.customVerified)) for (const site of saved.customVerified) if (typeof site === 'string' && site !== 'pixiv') this.verified.add(site)
     this.changed = changed
     this.sessions = Object.fromEntries(Object.keys(sites).map(site => [site, session.fromPartition(sitePartition(site))]))
     for (const [site, ses] of Object.entries(this.sessions) as [SiteId, Session][]) {
       secureSession(ses)
-      ses.cookies.on('changed', () => { if (site === 'pixiv') void this.publish() })
+      ses.cookies.on('changed', () => { if (sites[site].login) void this.publish() })
     }
     this.ready = this.applyProxy(this.settings).catch(() => { this.configurationError = new Error('代理初始化失败，请重新应用代理设置') })
   }
   private save(): void {
-    writeFileSync(`${this.file}.tmp`, JSON.stringify({ settings: this.settings, pixivVerified: this.verified }))
+    writeFileSync(`${this.file}.tmp`, JSON.stringify({ settings: this.settings, pixivVerified: this.verified.has('pixiv'), customVerified: [...this.verified].filter(site => site !== 'pixiv') }))
     renameSync(`${this.file}.tmp`, this.file)
   }
   private async applyProxy(settings: NetworkSettings): Promise<void> {
@@ -56,9 +58,16 @@ export class SiteNetwork {
   async waitForIdle(): Promise<void> { await this.ready }
   async snapshot(): Promise<NetworkSnapshot> {
     await this.ready
-    const cookies = this.verified ? await this.sessions.pixiv.cookies.get({ url: sites.pixiv.home }) : []
-    return { settings: structuredClone(this.settings), loggedIn: { ...Object.fromEntries(Object.keys(sites).map(site => [site, false])), pixiv: this.verified && cookies.some(c => c.name === 'PHPSESSID' && c.value.length > 0) } }
+    const loggedIn = Object.fromEntries(await Promise.all(Object.keys(sites).map(async site => [site, this.verified.has(site) && await this.hasLoginCookie(this.sessions[site], site)])))
+    return { settings: structuredClone(this.settings), loggedIn }
   }
+  private async hasLoginCookie(ses: Session, site: SiteId): Promise<boolean> {
+    if (!sites[site]?.login) return false
+    const key = site === 'pixiv' ? 'PHPSESSID' : sites[site].cookieAuthKey
+    const cookies = await ses.cookies.get({ url: sites[site].home })
+    return cookies.some(cookie => cookie.value.length > 0 && (!key || (site === 'pixiv' ? cookie.name === key : cookie.name.toLowerCase() === key.toLowerCase())))
+  }
+
   private async publish(): Promise<void> { try { this.changed(await this.snapshot()) } catch { /* A failed session init is reported by the initiating request. */ } }
   async update(value: unknown): Promise<void> {
     const next = validateNetwork(value)
@@ -77,7 +86,7 @@ export class SiteNetwork {
     return this.mutate(async () => {
       const ses = session.fromPartition(`moe-login-${site}-${randomUUID()}`, { cache: false })
       secureSession(ses); await ses.setProxy(proxyConfig(this.settings, site))
-      if (site === 'pixiv' && this.verified) for (const cookie of await this.sessions.pixiv.cookies.get({})) await ses.cookies.set(cookieDetails(cookie))
+      if (this.verified.has(site)) for (const cookie of await this.sessions[site].cookies.get({})) await ses.cookies.set(cookieDetails(cookie))
       this.candidates.set(ses, site)
       return ses
     })
@@ -98,17 +107,33 @@ export class SiteNetwork {
     signal.throwIfAborted()
     if (!(await candidate.cookies.get({ url: sites.pixiv.home })).some(cookie => cookie.name === 'PHPSESSID' && cookie.value)) throw new Error('认证失败，请确认登录成功')
     const cookies = (await candidate.cookies.get({})).filter(c => c.domain === 'pixiv.net' || c.domain?.endsWith('.pixiv.net'))
+    await this.commitCookies('pixiv', cookies, signal)
+  }
+  async commitCustom(candidate: Session, signal: AbortSignal): Promise<void> {
+    const site = this.candidates.get(candidate)
+    if (!site || !sites[site]?.custom || !sites[site].login) throw new Error('登录会话无效')
+    signal.throwIfAborted()
+    if (!await this.hasLoginCookie(candidate, site)) throw new Error('认证失败，请确认登录成功')
+    const hosts = sites[site].hosts.map(host => new URL(`http://${host}`).hostname)
+    const cookies = (await candidate.cookies.get({})).filter(cookie => {
+      const domain = cookie.domain?.replace(/^\./, '')
+      return domain && hosts.some(host => host === domain || host.endsWith(`.${domain}`))
+    })
+    await this.commitCookies(site, cookies, signal)
+  }
+  private async commitCookies(site: SiteId, cookies: Cookie[], signal: AbortSignal): Promise<void> {
     await this.mutate(async () => {
       signal.throwIfAborted()
-      const target = this.sessions.pixiv, oldCookies = await target.cookies.get({}), oldVerified = this.verified
+      const target = this.sessions[site], oldCookies = await target.cookies.get({}), oldVerified = this.verified.has(site)
       try {
         signal.throwIfAborted()
         await target.clearStorageData({ storages: ['cookies'] })
         for (const cookie of cookies) { signal.throwIfAborted(); await target.cookies.set(cookieDetails(cookie)) }
         await target.cookies.flushStore(); signal.throwIfAborted()
-        this.verified = true; this.save()
+        this.verified.add(site); this.save()
+        this.authRevision.set(site, (this.authRevision.get(site) ?? 0) + 1)
       } catch (error) {
-        this.verified = oldVerified
+        if (oldVerified) this.verified.add(site); else this.verified.delete(site)
         await target.clearStorageData({ storages: ['cookies'] })
         for (const cookie of oldCookies) await target.cookies.set(cookieDetails(cookie))
         await target.cookies.flushStore(); throw error
@@ -117,9 +142,10 @@ export class SiteNetwork {
     await this.publish()
   }
   async logout(site: SiteId): Promise<void> {
-    if (site !== 'pixiv') throw new Error('该站点不支持账号')
+    if (!sites[site]?.login) throw new Error('该站点不支持账号')
     await this.mutate(async () => {
-      this.verified = false; this.save()
+      this.verified.delete(site); this.save()
+      this.authRevision.set(site, (this.authRevision.get(site) ?? 0) + 1)
       await this.sessions[site].closeAllConnections(); await this.sessions[site].clearStorageData(); await this.sessions[site].clearCache()
     })
     await this.publish()
@@ -129,10 +155,12 @@ export class SiteNetwork {
     if (site === 'pixiv' && !(await this.snapshot()).loggedIn.pixiv) throw new Error('需要重新登录Pixiv站点才能开始搜索')
     for (let hop = 0; hop < 5; hop++) {
       if (!allowedSiteUrl(url, site)) throw new Error('站点资源地址不受支持')
+      let requestRevision = 0
       const request = async (): Promise<Response> => {
         await this.ready; signal.throwIfAborted()
         if (this.configurationError) throw this.configurationError
-        if (site === 'pixiv' && !this.verified) throw new Error('需要重新登录Pixiv站点才能开始搜索')
+        if (site === 'pixiv' && !this.verified.has(site)) throw new Error('需要重新登录Pixiv站点才能开始搜索')
+        requestRevision = this.authRevision.get(site) ?? 0
         return this.sessions[site].fetch(url, { signal, redirect: 'manual', credentials: 'include', headers: { Referer: referer || sites[site].home } })
       }
       let response: Response
@@ -144,7 +172,13 @@ export class SiteNetwork {
       }
       if (!response.ok) {
         await response.body?.cancel()
-        if (response.status === 401 && site === 'pixiv') { this.verified = false; this.save(); void this.publish() }
+        if (response.status === 401 && sites[site].login) {
+          await this.mutate(async () => {
+            if (requestRevision !== (this.authRevision.get(site) ?? 0) || !this.verified.has(site)) return
+            this.verified.delete(site); this.save()
+          })
+          void this.publish()
+        }
         throw new Error(`站点请求失败 (${response.status})`)
       }
       return response
