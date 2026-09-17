@@ -267,7 +267,7 @@ async function startBrowser(): Promise<void> {
     popup.hidden = true; menu.hidden = true; document.body.classList.add('has-search')
     const current = ++epoch; setBusy(true)
     try {
-      if (!next) { activeKeyword = value('keyword'); activeSite = networkInput().site ?? 'konachan-g'; const quality = $<HTMLSelectElement>('quality'); quality.replaceChildren(...(activeSite === 'pixiv' ? ['自动','原图','大图'] : activeSite === 'safebooru' ? ['原图','Jpeg图','预览图','自动'] : sites[activeSite].custom ? ['原图','自动'] : ['原图','预览图','自动']).map(label => new Option(label))); pages = []; currentPage = undefined; $('pictures').replaceChildren(); $('pages').replaceChildren(); selected.clear(); cards.clear(); visible = []; $('no-results').hidden = true; selection() }
+      if (!next) { activeKeyword = value('keyword'); activeSite = networkInput().site ?? 'konachan-g'; const quality = $<HTMLSelectElement>('quality'); quality.replaceChildren(...(activeSite === 'pixiv' ? ['自动','原图','大图'] : (activeSite === 'safebooru' || activeSite === 'yande') ? ['原图','Jpeg图','预览图','自动'] : sites[activeSite].custom ? ['原图','自动'] : ['原图','预览图','自动']).map(label => new Option(label))); pages = []; currentPage = undefined; $('pictures').replaceChildren(); $('pages').replaceChildren(); selected.clear(); cards.clear(); visible = []; $('no-results').hidden = true; selection() }
       const result = await (next ? window.moe.next() : window.moe.search(input()))
       if (current !== epoch) return
       pages.push(result); display(result)

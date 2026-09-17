@@ -48,7 +48,7 @@ export function installLogin(network: SiteNetwork, main: () => BrowserWindow | u
     try {
       const signal = AbortSignal.any([entry.controller.signal, AbortSignal.timeout(40000)])
       if (entry.status.site === 'pixiv') await network.commitPixiv(entry.view.webContents.session, signal)
-      else await network.commitCustom(entry.view.webContents.session, signal)
+      else await network.commitCookieLogin(entry.view.webContents.session, signal)
       if (entry.controller.signal.aborted) return
       for (let seconds = 4; seconds > 0; seconds--) {
         publish(entry, 'success', `认证成功，${seconds}秒后将关闭窗口`)

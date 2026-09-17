@@ -16,3 +16,5 @@ MoeLoaderE 的站点解析、搜索分页、已读记录、下载队列/命名�
 
 - jsdom 30.0.1（MIT）用于自定义站点的静态 HTML/XPath 解析；不执行抓取页面脚本或加载子资源。上游：https://github.com/jsdom/jsdom 。
 - custom-site.png 来自 MoeLoaderP Assets/SiteIcon/default.png；自定义配置和 XPath 语义转写自 CustomSite.cs、CustomSiteConfig.cs 和 Ex.GetValue，基线见 openspec/changes/port-custom-sites/source-hashes.json。
+
+- yande.ico 来自 MoeLoaderP Assets/SiteIcon/yande.ico；Yande 查询与字段按 YandeSite.cs/BooruSite.cs 转写，基线见 openspec/changes/port-yande/source-hashes.json。

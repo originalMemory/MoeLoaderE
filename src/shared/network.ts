@@ -1,6 +1,7 @@
 import type { NetworkSettings, SiteId, ProxyMode, SiteDefinition } from './types'
 
 export const sites: Record<string, SiteDefinition> = {
+  yande: { name: 'Yande', home: 'https://yande.re', login: 'https://yande.re/user/login', cookieAuthKey: 'user_id', hosts: ['yande.re', 'files.yande.re', 'assets.yande.re'] },
   safebooru: { name: 'Safebooru', home: 'https://safebooru.org', login: '', hosts: ['safebooru.org', 'www.safebooru.org'] },
   'konachan-g': { name: 'Konachan-G', home: 'https://konachan.net', login: '', hosts: ['konachan.net', 'www.konachan.net', 'konachan.com', 'www.konachan.com'] },
   pixiv: { name: 'Pixiv', home: 'https://www.pixiv.net', login: 'https://accounts.pixiv.net/login', hosts: ['www.pixiv.net', 'accounts.pixiv.net', 'i.pximg.net', 's.pximg.net'] }

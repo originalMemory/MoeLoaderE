@@ -298,3 +298,6 @@ body.custom-no-keyword #parameters-toggle { position:static; width:160px; height
 body.custom-no-keyword #parameters-toggle span { display:inline; margin-left:4px; }
 body.custom-no-keyword #search-popup { grid-template-columns:max-content; }
 body.custom-no-keyword .parameter-fields { grid-column:1; }
+
+body[data-site=yande] [data-select=site] .select-toggle { background-image:url('/assets/yande.ico'),linear-gradient(#f1f1f1,#fff); }
+body[data-site=yande] #search-form { width:442px; }

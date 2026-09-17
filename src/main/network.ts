@@ -109,9 +109,9 @@ export class SiteNetwork {
     const cookies = (await candidate.cookies.get({})).filter(c => c.domain === 'pixiv.net' || c.domain?.endsWith('.pixiv.net'))
     await this.commitCookies('pixiv', cookies, signal)
   }
-  async commitCustom(candidate: Session, signal: AbortSignal): Promise<void> {
+  async commitCookieLogin(candidate: Session, signal: AbortSignal): Promise<void> {
     const site = this.candidates.get(candidate)
-    if (!site || !sites[site]?.custom || !sites[site].login) throw new Error('登录会话无效')
+    if (!site || site === 'pixiv' || !sites[site]?.login) throw new Error('登录会话无效')
     signal.throwIfAborted()
     if (!await this.hasLoginCookie(candidate, site)) throw new Error('认证失败，请确认登录成功')
     const hosts = sites[site].hosts.map(host => new URL(`http://${host}`).hostname)
@@ -161,7 +161,8 @@ export class SiteNetwork {
         if (this.configurationError) throw this.configurationError
         if (site === 'pixiv' && !this.verified.has(site)) throw new Error('需要重新登录Pixiv站点才能开始搜索')
         requestRevision = this.authRevision.get(site) ?? 0
-        return this.sessions[site].fetch(url, { signal, redirect: 'manual', credentials: 'include', headers: { Referer: referer || sites[site].home } })
+        // Preserve the adapter's explicit full Referer across CDN origins; Chromium otherwise blocks it.
+        return this.sessions[site].fetch(url, { signal, redirect: 'manual', credentials: 'include', referrerPolicy: 'unsafe-url', headers: { Referer: referer || sites[site].home } })
       }
       let response: Response
       try { response = await request() } catch (error) { signal.throwIfAborted(); if (!retry) throw error; response = await request() }
