@@ -14,8 +14,9 @@ test('下载桌面闭环：入队、文件、类型、任务包、IPC 与关闭�
  let app
  t.after(async()=>{if(app){await app.evaluate(({dialog})=>{dialog.showMessageBox=async()=>({response:1})}).catch(()=>{});await app.close().catch(()=>{})}await rm(profile,{recursive:true,force:true})})
  app=await electron.launch({args:['.',`--user-data-dir=${profile}`],env})
- const bytes=await app.evaluate(({session,nativeImage,dialog},bundlePath)=>{
-  globalThis.requests=[];globalThis.closeAnswer=2;globalThis.saveCancelled=false;globalThis.prompts=0
+ const bytes=await app.evaluate(({session,nativeImage,dialog,BrowserWindow},bundlePath)=>{
+  globalThis.requests=[];globalThis.closeAnswer=2;globalThis.saveCancelled=false;globalThis.prompts=0;globalThis.progressBars=[]
+  BrowserWindow.prototype.setProgressBar=(value,options)=>{globalThis.progressBars.push({value,mode:options?.mode})}
   dialog.showMessageBox=async()=>{globalThis.prompts++;return {response:globalThis.closeAnswer}}
   dialog.showSaveDialog=async()=>({canceled:globalThis.saveCancelled,filePath:bundlePath})
   dialog.showErrorBox=(_title,message)=>{globalThis.dialogError=message}
@@ -36,6 +37,7 @@ test('下载桌面闭环：入队、文件、类型、任务包、IPC 与关闭�
  await page.locator('#search-form').evaluate(el=>Promise.all(el.getAnimations().map(a=>a.finished)))
  await page.locator('.picture').first().hover();await page.locator('.picture').first().getByTitle('下载',{exact:true}).click()
  await page.locator('.download-row[data-status=success]').waitFor()
+ assert.ok((await app.evaluate(()=>globalThis.progressBars)).some(value=>value.mode==='normal'&&value.value===1))
  assert.deepEqual(await readFile(join(directory,'konachan-g','500.jpg')),Buffer.from(bytes.jpg,'base64'))
  const requests=await app.evaluate(()=>globalThis.requests)
  assert.ok(requests.some(r=>r.url.endsWith('0-original.jpg')&&r.referer==='https://konachan.net/post/show/500'))
@@ -85,6 +87,11 @@ test('下载桌面闭环：入队、文件、类型、任务包、IPC 与关闭�
  assert.equal(page.isClosed(),false,'导出超限时不得关闭窗口')
  assert.match(await app.evaluate(()=>globalThis.dialogError),/10000/)
  assert.equal(await readFile(bundlePath,'utf8'),beforeFailedExport,'超限合并不得覆盖旧包')
+ await page.locator('.download-row[data-status=failed]').click({button:'right'})
+ await page.locator('#download-menu').getByRole('button',{name:'清除成功并重试失败',exact:true}).click()
+ await page.locator('.download-row[data-status=success]').waitFor({state:'hidden'})
+ await page.locator('.download-row[data-status=failed]').waitFor()
+ assert.equal((await page.evaluate(()=>window.moe.downloads())).tasks.length,1)
  await page.locator('.download-row[data-status=failed]').click({button:'right'})
  await page.locator('#download-menu').getByRole('button',{name:'删除',exact:true}).click()
  await page.locator('.download-row[data-status=failed]').waitFor({state:'hidden'})

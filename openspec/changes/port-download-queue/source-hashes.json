@@ -1,13 +1,17 @@
 {
-  "head": "f37c5116f0b9b82d795c85549041373e22b2967a",
+  "head": "f1fd37c2a8f4c7a5048cdd63d1cadd0050234ea9",
   "files": [
     {
       "path": "MoeLoaderP.Core/MoeDownloader.cs",
-      "sha256": "a2949e7ae09dd70a849a8126566c5a9ae3e819610708ebe9c7114be19b0d0127"
+      "sha256": "299dd9c659d838e097414d76d05fa5180051e533d17feb41e1ea1ab3c3dc25f9"
     },
     {
       "path": "MoeLoaderP.Core/MoeItem.cs",
-      "sha256": "6dc5832c022b80ae0adca9eb6433b5fba572e03bc0d449df82f558323e5e9155"
+      "sha256": "09bf85edc85b33817853f9d0de776ae0f9ce77ef174d2c0802c13cf336cec505"
+    },
+    {
+      "path": "MoeLoaderP.Core/SearchSession.cs",
+      "sha256": "6ddf1962e32c09fe9416019568a091b96180375ad35db6ba0b1c049ed26a5f1b"
     },
     {
       "path": "MoeLoaderP.Core/MoeItemHelper.cs",
@@ -23,15 +27,15 @@
     },
     {
       "path": "MoeLoaderP.Wpf/ControlParts/DownloaderControl.xaml",
-      "sha256": "4a09878d94ea734fd2fa0e9b6e2a0a1b98b83bb25fe0eabc21b552e66d92bf26"
+      "sha256": "48854a1d9200fb6c1aeecd4d76cfcc68f5d3801087f2e34e926865b47e1ad110"
     },
     {
       "path": "MoeLoaderP.Wpf/ControlParts/DownloaderControl.xaml.cs",
-      "sha256": "a70ac3d08de060d27e511858c29831d894727339c32619dd95bb97ba06b5cc6c"
+      "sha256": "5b7b6a871f9105fd8d04841d87484453cc8dd2b10137a3e9d89ae344069c16e3"
     },
     {
       "path": "MoeLoaderP.Wpf/ControlParts/MoeExplorerControl.xaml.cs",
-      "sha256": "4bd0d29dfd9e3e4023732f6c7b7c13baeeb89996d670294850e38117ca4914c4"
+      "sha256": "eeb5e3e86cfce162acabdcb9210a0cd4651991a0c92de535734b8a9977fb6267"
     },
     {
       "path": "MoeLoaderP.Wpf/MainWindow.xaml.cs",
@@ -59,7 +63,7 @@
     },
     {
       "path": "MoeLoaderP.Wpf/Assets/Lang/zh-CN.xaml",
-      "sha256": "96837fa580e61e7a8f434b1ade2b54ef0a1329f4b3324f338a4166f018e6d26f"
+      "sha256": "8429dc3bdfdd6392c792f73a9426129ecef63fc2f052dcaff9069050f6326b6a"
     },
     {
       "path": "MoeLoaderP.Wpf/MainWindow.xaml",

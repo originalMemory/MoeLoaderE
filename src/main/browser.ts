@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url'
 import { home, validateSearch, Viewed, visualPage } from '../shared/booru'
 import type { BrowserState, Picture, SearchInput, VisualPage } from '../shared/types'
 import { appearance, setAcrylicEnabled } from './appearance'
-import { DownloadQueue, downloadDefaults, validateDownloadSettings } from './downloads'
+import { DownloadQueue, downloadDefaults, taskbarProgress, validateDownloadSettings } from './downloads'
 import { exportBundle, importSources, parseBundle } from './download-bundle'
 import type { DownloadAction, DownloadSource } from '../shared/types'
 import { randomUUID } from 'node:crypto'
@@ -87,7 +87,13 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
   const initial = downloadDefaults(join(app.getPath('pictures'), 'MoeLoaderE'))
   const stored = existsSync(downloadPath) ? JSON.parse(readFileSync(downloadPath, 'utf8')) : undefined
   const queue = new DownloadQueue(stored ? validateDownloadSettings(stored, typeof stored.directory === 'string' && stored.directory ? stored.directory : initial.directory) : initial, (url, signal, referer, site) => siteResponse(url, signal, referer, false, site),
-    () => { const window = main(); if (window && !window.isDestroyed()) window.webContents.send('moe:downloads-changed', { tasks: queue.tasks, settings: queue.settings }) })
+    () => {
+      const window = main()
+      if (!window || window.isDestroyed()) return
+      window.webContents.send('moe:downloads-changed', { tasks: queue.tasks, settings: queue.settings })
+      const progress = taskbarProgress(queue.tasks)
+      window.setProgressBar(progress.value, { mode: progress.mode })
+    })
   const saveDownloads = (): void => {
     writeFileSync(`${downloadPath}.tmp`, JSON.stringify(queue.settings)); renameSync(`${downloadPath}.tmp`, downloadPath)
   }
@@ -229,7 +235,7 @@ export function installBrowser(main: () => BrowserWindow | undefined, createPrev
     queue.add(sources); return sources.length
   })
   handle('download-action', (_event, value) => {
-    if (!value || !['stop', 'retry', 'remove', 'clear'].includes(value.action) || !Array.isArray(value.ids) || value.ids.length > 10000 || value.ids.some((id: unknown) => typeof id !== 'string' || !queue.tasks.some(task => task.id === id))) throw new Error('下载操作无效')
+    if (!value || !['stop', 'retry', 'remove', 'clear', 'clear-success-retry-failed'].includes(value.action) || !Array.isArray(value.ids) || value.ids.length > 10000 || value.ids.some((id: unknown) => typeof id !== 'string' || !queue.tasks.some(task => task.id === id))) throw new Error('下载操作无效')
     queue.action(value.action as DownloadAction, value.ids)
   })
   handle('download-settings', (_event, value) => {

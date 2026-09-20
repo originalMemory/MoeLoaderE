@@ -146,7 +146,7 @@ export interface DownloadSource {
   children?: DownloadSource[]
 }
 export type DownloadStatus = 'queued' | 'downloading' | 'stopped' | 'failed' | 'success' | 'skip' | 'cancelled'
-export type DownloadAction = 'stop' | 'retry' | 'remove' | 'clear'
+export type DownloadAction = 'stop' | 'retry' | 'remove' | 'clear' | 'clear-success-retry-failed'
 export interface DownloadTask {
   id: string
   source: DownloadSource

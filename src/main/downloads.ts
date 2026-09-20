@@ -39,8 +39,8 @@ export function filePath(source: DownloadSource, settings: DownloadSettings, ind
   let name = source.name || format(settings.fileTemplate || '%site %id')
   if (index) name += ` p${index}`
   name = clean(name)
-  // Keep every filename within the common 255-byte filesystem component limit.
-  while (Buffer.byteLength(name + extension) > 250) name = [...name].slice(0, -1).join('')
+  // Match MoeLoaderP's Samba-safe 240-byte limit, including the extension.
+  while (Buffer.byteLength(name + extension) > 240) name = [...name].slice(0, -1).join('')
   return join(settings.directory, ...folder, name + extension)
 }
 const complete = (task: DownloadTask): boolean => task.status === 'success' || task.status === 'skip'
@@ -67,6 +67,10 @@ export class DownloadQueue {
   action(action: DownloadAction, ids: string[]): void {
     const chosen = this.tasks.filter(task => ids.includes(task.id))
     if (action === 'clear') this.tasks = this.tasks.filter(task => !complete(task))
+    if (action === 'clear-success-retry-failed') {
+      this.tasks = this.tasks.filter(task => !complete(task))
+      for (const task of this.tasks) if (task.status === 'failed') { task.status = 'queued'; task.text = '等待下载'; task.loaded = 0; task.progress = 0 }
+    }
     for (const task of chosen) {
       if (action === 'remove') { this.active.get(task.id)?.abort(); task.status = 'cancelled'; this.tasks = this.tasks.filter(t => t !== task) }
       if (action === 'stop' && ['queued', 'downloading'].includes(task.status)) { task.status = 'stopped'; task.text = '已停止'; this.active.get(task.id)?.abort() }
@@ -176,4 +180,12 @@ export class DownloadQueue {
       }
     } finally { await unlink(temp).catch(error => { if (error.code !== 'ENOENT') throw error }) }
   }
+}
+
+export function taskbarProgress(tasks: DownloadTask[]): { value: number; mode: 'none' | 'normal' | 'error' } {
+  if (!tasks.length) return { value: -1, mode: 'none' }
+  if (tasks.some(task => task.status === 'downloading')) return { value: tasks.reduce((sum, task) => sum + Math.min(100, Math.max(0, task.progress)), 0) / tasks.length / 100, mode: 'normal' }
+  if (tasks.some(task => task.status === 'failed')) return { value: 1, mode: 'error' }
+  if (tasks.every(complete)) return { value: 1, mode: 'normal' }
+  return { value: -1, mode: 'none' }
 }

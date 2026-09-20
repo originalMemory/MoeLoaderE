@@ -3,7 +3,7 @@ import { mkdtemp, readFile, readdir, rm, writeFile, mkdir, symlink } from 'node:
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import test from 'node:test'
-import { DownloadQueue, downloadDefaults, filePath } from '../src/main/downloads.ts'
+import { DownloadQueue, downloadDefaults, filePath, taskbarProgress } from '../src/main/downloads.ts'
 import { exportBundle, importSources, parseBundle } from '../src/main/download-bundle.ts'
 const source = (id = 1, extra = {}) => ({ id, url: `https://konachan.net/${id}.png`, referer: `https://konachan.net/post/show/${id}`, detail: '', keyword: 'landscape', tags: ['sky','blue'], ...extra })
 const wait = async predicate => { for (let n=0;n<500;n++) { if(await predicate())return;await new Promise(r=>setTimeout(r,10)) } throw Error('等待下载状态超时') }
@@ -27,7 +27,25 @@ test('下载文件：命名、并发、独占落盘与同名策略', async t => 
   const path=filePath(source(9,{authorId:'42',title:'../escape',keyword:'x/y'}),{...settings,fileTemplate:'%sitedispname %upid %keyword',folderTemplate:'%site\\%title'})
   assert.ok(path.startsWith(root));assert.match(path,/Konachan-G 42 x_y\.png$/)
   assert.equal(path.includes('/escape/'),false)
-  const long=filePath(source(10,{title:'汉'.repeat(400)}),{...settings,fileTemplate:'%title'});assert.ok(Buffer.byteLength(long.split('/').at(-1))<=250)
+  const long=filePath(source(10,{title:'汉😀'.repeat(400)}),{...settings,fileTemplate:'%title'});assert.ok(Buffer.byteLength(long.split('/').at(-1))<=240)
+})
+
+test('清除成功并重试失败，同时更新系统任务栏进度语义', async t => {
+  const root=await mkdtemp(join(tmpdir(),'moe-clean-retry-'));t.after(()=>rm(root,{recursive:true,force:true}))
+  let online=false
+  const queue=new DownloadQueue({...downloadDefaults(root),concurrency:1},async()=>{if(!online)throw Error('offline');return response()},()=>{})
+  const [failed]=queue.add([source(1)]);await wait(()=>failed.status==='failed')
+  online=true;const [success]=queue.add([source(2)]);await wait(()=>success.status==='success')
+  const [stopped]=queue.add([source(3)]);queue.action('stop',[stopped.id]);await queue.stopAll()
+  assert.deepEqual(taskbarProgress(queue.tasks),{value:1,mode:'error'})
+  queue.action('clear-success-retry-failed',queue.tasks.map(task=>task.id))
+  assert.equal(queue.tasks.includes(success),false);assert.equal(queue.tasks.includes(stopped),true)
+  await wait(()=>failed.status==='success')
+  assert.deepEqual(taskbarProgress(queue.tasks),{value:-1,mode:'none'})
+  queue.action('retry',[stopped.id]);await wait(()=>stopped.status==='success')
+  assert.deepEqual(taskbarProgress(queue.tasks),{value:1,mode:'normal'})
+  assert.deepEqual(taskbarProgress([{...success,status:'downloading',progress:50},{...success,progress:100}]),{value:.75,mode:'normal'})
+  assert.deepEqual(taskbarProgress([]),{value:-1,mode:'none'})
 })
 
 test('断流、停止/重试和删除不留下半成品；组图失败如实汇总', async t => {

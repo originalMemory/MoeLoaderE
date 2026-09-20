@@ -195,7 +195,7 @@ export async function installDownloads(report: (text: string) => void): Promise<
       if (action === 'all') { tasks.forEach(task => selected.add(task.id)); selection() }
       else if (action === 'export') { if (await window.moe.exportDownloads()) report('未成功任务导出完成') }
       else if (action === 'reveal') { const id = selected.values().next().value; if (id) await window.moe.revealDownload(id) }
-      else await window.moe.downloadAction((action === 'start-all' ? 'retry' : action === 'stop-all' ? 'stop' : action) as DownloadAction, action.endsWith('-all') ? tasks.map(t => t.id) : [...selected])
+      else await window.moe.downloadAction((action === 'start-all' ? 'retry' : action === 'stop-all' ? 'stop' : action) as DownloadAction, action.endsWith('-all') || action === 'clear-success-retry-failed' ? tasks.map(t => t.id) : [...selected])
     })().catch(fail)
   }
   document.querySelector<HTMLButtonElement>('#download-directory')!.onclick = () => {
