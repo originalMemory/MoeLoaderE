@@ -1,0 +1,8 @@
+{
+  "head": "f1fd37c2a8f4c7a5048cdd63d1cadd0050234ea9",
+  "files": {
+    "MoeLoaderP.Core/Sites/GelbooruSite.cs": "2d23dd682ba60b2087e7ee5a2a7292bbdd9775984b62dd4ccbd0c14e85b6be01",
+    "MoeLoaderP.Core/Sites/BooruSite.cs": "00a8dda30bc96f7062fc7817bacd8bfb0830cd40bad83efc9dcbc800769f11f3",
+    "MoeLoaderP.Wpf/Assets/SiteIcon/gelbooru.ico": "4e141e6497b8481001f28fd557eb2cfd32b00b9bc90c7494d67ca1e0a6b93e11"
+  }
+}

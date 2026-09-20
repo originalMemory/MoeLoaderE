@@ -19,6 +19,7 @@ export function validateSearch(value: unknown): SearchInput {
   return { ...(v.customCategory !== undefined ? {customCategory: v.customCategory} : {}), ...(v.site ? { site: v.site } : {}), ...(v.site === 'pixiv' ? { pixivMode:v.pixivMode ?? 'tag', pixivKind:v.pixivKind ?? 'illust', pixivPeriod:v.pixivPeriod ?? 'daily', pixivDate:v.pixivDate ?? '' } : {}), keyword: v.keyword, page: v.page, count: v.count, filterResolution: v.filterResolution, minWidth: v.minWidth, minHeight: v.minHeight, orientation: v.orientation }
 }
 export function query(input: SearchInput, page = input.page): string {
+  if (input.site === 'gelbooru') return `https://gelbooru.com/index.php?${new URLSearchParams({page:'dapi',s:'post',q:'index',pid:String(page-1),limit:String(input.count),tags:`${input.keyword} rating:general`})}`
   if (input.site === 'yande') return `https://yande.re/post.xml?${new URLSearchParams({page:String(page),limit:String(input.count),tags:`${input.keyword} rating:s`})}`
   if (input.site === 'safebooru') return `https://safebooru.org/index.php?${new URLSearchParams({ page: 'dapi', s: 'post', q: 'index', pid: String(page - 1), limit: String(input.count), tags: input.keyword })}`
   return `${home}/post.json?${new URLSearchParams({ page: String(page), limit: String(input.count), tags: `${input.keyword} rating:safe` })}`
@@ -32,9 +33,9 @@ export function parsePictures(value: unknown, input: SearchInput, viewed: Viewed
     const r = raw as Record<string, unknown>
     const width = integer(r.width), height = integer(r.height), id = integer(r.id)
     if (id <= 0) throw new Error('图片 ID 无效')
-    const safebooru = input.site === 'safebooru', yande = input.site === 'yande'
-    const siteHome = yande ? 'https://yande.re' : home
-    const nsfw = !safebooru && text(r.rating) !== 's'
+    const safebooru = input.site === 'safebooru', yande = input.site === 'yande', gelbooru = input.site === 'gelbooru'
+    const siteHome = yande ? 'https://yande.re' : gelbooru ? 'https://gelbooru.com' : home
+    const nsfw = safebooru ? false : gelbooru ? text(r.rating) !== 'general' : text(r.rating) !== 's'
     const seconds = integer(r.created_at)
     let date = text(r.created_at)
     const parsed = seconds > 0 && seconds <= 253402300799 ? new Date(seconds * 1000) : date ? new Date(date) : undefined
@@ -43,7 +44,7 @@ export function parsePictures(value: unknown, input: SearchInput, viewed: Viewed
     while (tags.length && !tags[0].trim()) tags.shift()
     return {
       key: '', id, width, height, score: integer(r.score), author: text(r.author), authorId: text(r.creator_id), tags: tags.map(t => t.trim()), date,
-      source: text(r.source), detail: safebooru ? `https://safebooru.org/index.php?page=post&s=view&id=${id}` : `${siteHome}/post/show/${id}`, thumbnail: safebooru ? text(r.preview_url).replace(/\.(png|jpeg)(?=\?|$)/i, '.jpg') : text(r.preview_url), ...(safebooru || yande ? { large: text(r.jpeg_url || r.sample_url || r.file_url) } : {}), preview: text(safebooru || yande ? r.sample_url || r.file_url : r.sample_url), original: text(r.file_url), bytes: Math.max(0, integer(r.file_size)), nsfw,
+      source: text(r.source), detail: safebooru || gelbooru ? `${siteHome}/index.php?page=post&s=view&id=${id}` : `${siteHome}/post/show/${id}`, thumbnail: safebooru ? text(r.preview_url).replace(/\.(png|jpeg)(?=\?|$)/i, '.jpg') : text(r.preview_url), ...(safebooru || yande || gelbooru ? { large: text(r.jpeg_url || r.sample_url || r.file_url) } : {}), preview: text(safebooru || yande || gelbooru ? r.sample_url || r.file_url : r.sample_url), original: text(r.file_url), bytes: Math.max(0, integer(r.file_size)), nsfw,
       viewed: viewed.has(id), filtered: nsfw || (input.filterResolution && (width < input.minWidth || height < input.minHeight)) || (input.orientation === 1 && height >= width) || (input.orientation === 2 && height <= width)
     }
   }).map(item => { viewed.add(item.id); return item })

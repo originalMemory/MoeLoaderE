@@ -1,6 +1,7 @@
 import type { NetworkSettings, SiteId, ProxyMode, SiteDefinition } from './types'
 
 export const sites: Record<string, SiteDefinition> = {
+  gelbooru: { name: 'Gelbooru', home: 'https://gelbooru.com', login: 'https://gelbooru.com/index.php?page=account&s=login&code=00', cookieAuthKey: 'user_id', hosts: ['gelbooru.com'], hostSuffixes: ['gelbooru.com'] },
   yande: { name: 'Yande', home: 'https://yande.re', login: 'https://yande.re/user/login', cookieAuthKey: 'user_id', hosts: ['yande.re', 'files.yande.re', 'assets.yande.re'] },
   safebooru: { name: 'Safebooru', home: 'https://safebooru.org', login: '', hosts: ['safebooru.org', 'www.safebooru.org'] },
   'konachan-g': { name: 'Konachan-G', home: 'https://konachan.net', login: '', hosts: ['konachan.net', 'www.konachan.net', 'konachan.com', 'www.konachan.com'] },
@@ -10,7 +11,7 @@ export function validSite(value: unknown): value is SiteId { return typeof value
 export function allowedSiteUrl(value: string, site: SiteId): boolean {
   try {
     const u = new URL(value)
-    return validSite(site) && (sites[site].custom ? ['http:', 'https:'].includes(u.protocol) : u.protocol === 'https:' && !u.port) && !u.username && !u.password && sites[site].hosts.includes(u.host)
+    return validSite(site) && (sites[site].custom ? ['http:', 'https:'].includes(u.protocol) : u.protocol === 'https:' && !u.port) && !u.username && !u.password && (sites[site].hosts.includes(u.host) || !!sites[site].hostSuffixes?.some(suffix => u.hostname.endsWith(`.${suffix}`)))
   } catch { return false }
 }
 export function siteForUrl(value: string): SiteId {

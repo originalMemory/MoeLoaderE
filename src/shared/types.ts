@@ -40,6 +40,10 @@ export interface Picture {
   detail: string
   thumbnail: string
   large?: string
+  artist?: string
+  character?: string
+  copyright?: string
+  detailsLoaded?: boolean
   preview: string
   original: string
   bytes: number
@@ -60,7 +64,7 @@ export interface VisualPage {
 export interface SearchSettings { loadConcurrency: number; historyLimit: number; hideViewed: boolean }
 export interface BackgroundImage { url: string; width: number; height: number; align: 'left' | 'center' | 'right' }
 export interface DisplaySettings { showBackground: boolean; lowPerformance: boolean }
-export interface SiteDefinition { name: string; home: string; login: string; hosts: readonly string[]; custom?: boolean; dynamicCategories?: boolean; categories?: string[]; keyword?: boolean; icon?: string; cookieAuthKey?: string }
+export interface SiteDefinition { name: string; home: string; login: string; hosts: readonly string[]; hostSuffixes?: readonly string[]; custom?: boolean; dynamicCategories?: boolean; categories?: string[]; keyword?: boolean; icon?: string; cookieAuthKey?: string }
 export interface BrowserState {
   sites: Record<string, SiteDefinition>
   customErrors: string[]
@@ -139,6 +143,9 @@ export interface DownloadSource {
   title?: string
   author?: string
   authorId?: string
+  artist?: string
+  character?: string
+  copyright?: string
   tags: string[]
   date?: string
   name?: string

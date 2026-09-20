@@ -45,6 +45,12 @@ async function startBrowser(): Promise<void> {
   new ResizeObserver(fitPopup).observe(popup)
   window.addEventListener('resize', fitPopup)
   const input = (): SearchInput => ({ ...networkInput(), keyword: value('keyword'), page: Number(value('start-page')), count: Number(value('count')), filterResolution: checked('filter-resolution'), minWidth: Number(value('min-width')), minHeight: Number(value('min-height')), orientation: Number(value('orientation')) as 0 | 1 | 2 })
+  const selectedUrl = (item: Picture, page: Pick<Picture, 'preview' | 'original'> = item): string => value('quality') === 'Jpeg图' ? item.large || item.preview : ['预览图','大图'].includes(value('quality')) ? page.preview : page.original
+  const updateFileInfo = (card: HTMLElement, item: Picture): void => {
+    const url = selectedUrl(item), extension = url.split('?')[0].split('.').at(-1) ?? ''
+    const bytes = url === item.original ? item.bytes : 0
+    card.querySelector('.file-info')!.textContent = `${extension.length < 5 ? extension : ''}${bytes ? ` ${bytes < 1048576 ? `${Math.round(bytes / 1024)}kB` : `${Math.round(bytes / 1048576 * 100) / 100}MB`}` : ''}`
+  }
 
   let backgroundImage: BackgroundImage | undefined
   const backgroundLayer = $('background-layer'), background = $<HTMLImageElement>('background-image')
@@ -150,10 +156,11 @@ async function startBrowser(): Promise<void> {
       image.src = `moe-image://picture/${item.key}/thumbnail?retry=${Date.now()}`
     })
     const download = card.querySelector<HTMLButtonElement>('button[title="下载"]')!
-    download.disabled = !!item.unsupported || (item.site === 'pixiv' || !!sites[item.site ?? 'konachan-g'].custom) && !item.original
-    const detail = (item.site === 'pixiv' || !!sites[item.site ?? 'konachan-g'].custom) && !item.original && !item.unsupported ? window.moe.detail(item.key).then(detail => {
+    const needsDetail = ((item.site === 'pixiv' || !!sites[item.site ?? 'konachan-g'].custom) && !item.original) || item.site === 'gelbooru' && !item.detailsLoaded
+    download.disabled = !!item.unsupported || needsDetail
+    const detail = needsDetail && !item.unsupported ? window.moe.detail(item.key).then(detail => {
       Object.assign(item, detail); download.disabled = false
-      card.querySelector('.file-info')!.textContent = item.original.split('?')[0].split('.').at(-1) ?? ''
+      updateFileInfo(card, item)
       card.querySelector<HTMLElement>('.image-count')!.hidden = !(item.pageCount && item.pageCount > 1)
       card.querySelector('.image-count span')!.textContent = String(item.pageCount ?? '')
     }).catch(error => { card.classList.add('detail-failed'); card.title += `\n${String(error)}` }) : Promise.resolve()
@@ -220,8 +227,7 @@ async function startBrowser(): Promise<void> {
       card.querySelector<HTMLElement>('.score')!.hidden = item.score === 0
       card.querySelector('.resolution')!.textContent = `${item.width} × ${item.height}`
       card.querySelector<HTMLElement>('.resolution')!.hidden = !!sites[item.site ?? 'konachan-g'].custom && (!item.width || !item.height)
-      const ext = item.original.split('?')[0].split('.').at(-1) ?? ''
-      card.querySelector('.file-info')!.textContent = `${ext.length < 5 ? ext : ''}${item.bytes ? ` ${item.bytes < 1048576 ? `${Math.round(item.bytes / 1024)}kB` : `${Math.round(item.bytes / 1048576 * 100) / 100}MB`}` : ''}`
+      updateFileInfo(card, item)
       card.querySelector('.image-id')!.textContent = item.title || String(item.id)
       card.querySelector<HTMLElement>('.image-count')!.hidden = !(item.pageCount && item.pageCount > 1)
       card.querySelector('.image-count span')!.textContent = String(item.pageCount ?? '')
@@ -267,7 +273,7 @@ async function startBrowser(): Promise<void> {
     popup.hidden = true; menu.hidden = true; document.body.classList.add('has-search')
     const current = ++epoch; setBusy(true)
     try {
-      if (!next) { activeKeyword = value('keyword'); activeSite = networkInput().site ?? 'konachan-g'; const quality = $<HTMLSelectElement>('quality'); quality.replaceChildren(...(activeSite === 'pixiv' ? ['自动','原图','大图'] : (activeSite === 'safebooru' || activeSite === 'yande') ? ['原图','Jpeg图','预览图','自动'] : sites[activeSite].custom ? ['原图','自动'] : ['原图','预览图','自动']).map(label => new Option(label))); pages = []; currentPage = undefined; $('pictures').replaceChildren(); $('pages').replaceChildren(); selected.clear(); cards.clear(); visible = []; $('no-results').hidden = true; selection() }
+      if (!next) { activeKeyword = value('keyword'); activeSite = networkInput().site ?? 'konachan-g'; const quality = $<HTMLSelectElement>('quality'); quality.replaceChildren(...(activeSite === 'pixiv' ? ['自动','原图','大图'] : ['safebooru','yande','gelbooru'].includes(activeSite) ? ['原图','Jpeg图','预览图','自动'] : sites[activeSite].custom ? ['原图','自动'] : ['原图','预览图','自动']).map(label => new Option(label))); pages = []; currentPage = undefined; $('pictures').replaceChildren(); $('pages').replaceChildren(); selected.clear(); cards.clear(); visible = []; $('no-results').hidden = true; selection() }
       const result = await (next ? window.moe.next() : window.moe.search(input()))
       if (current !== epoch) return
       pages.push(result); display(result)
@@ -309,13 +315,14 @@ async function startBrowser(): Promise<void> {
   $('copy-collected').onclick = () => { void window.moe.copy(value('collected')).catch(failure) }
   $('clear-collected').onclick = () => { $<HTMLTextAreaElement>('collected').value = '' }
   $('download-selected').onclick = () => { void downloadSelected() }
+  $('quality').addEventListener('change', () => { for (const item of visible) updateFileInfo(cards.get(item.key)!, item) })
   $('export-selected').onclick = () => {
-    const list = visible.filter(item => selected.has(item.key)), quality = value('quality'), currentEpoch = epoch
+    const list = visible.filter(item => selected.has(item.key)), currentEpoch = epoch
     void (async () => {
       const lines: string[] = []
       for (const item of list) {
         if ((item.site === 'pixiv' || !!sites[item.site ?? 'konachan-g'].custom) && !item.original) Object.assign(item, await window.moe.detail(item.key))
-        for (const page of item.pages ?? [item]) { const url = quality === 'Jpeg图' ? item.large || item.preview : ['预览图','大图'].includes(quality) ? page.preview : page.original; if (url) lines.push(url) }
+        for (const page of item.pages ?? [item]) { const url = selectedUrl(item, page); if (url) lines.push(url) }
       }
       $<HTMLTextAreaElement>('collected').value += lines.map(url => `${url}\n`).join('')
       if (epoch === currentEpoch) { selected.clear(); selection() }

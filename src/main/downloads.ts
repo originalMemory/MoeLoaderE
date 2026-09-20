@@ -32,7 +32,7 @@ export function filePath(source: DownloadSource, settings: DownloadSettings, ind
     title: parent.title ?? 'no-title', uploader: parent.author ?? 'no-uploader', upid: parent.authorId ?? 'no-uploader-id',
     uploader_id: parent.authorId ?? 'no-uploader-id', date: parent.date ?? 'no-date',
     origin: original.slice(0, -extension.length), tag: (settings.tagCount ? parent.tags.slice(0, settings.tagCount) : parent.tags).map(t => `${t} `).join(''),
-    character: 'no-character', artist: 'no-artist', copyright: 'no-copyright'
+    character: parent.character || 'no-character', artist: parent.artist || 'no-artist', copyright: parent.copyright || 'no-copyright'
   }
   const format = (text: string): string => text.replace(/%(sitedispname|site|uploader_id|uploader|upid|keyword|copyright|character|artist|origin|title|date|tag|id)/g, (_m, key: string) => clean(tokens[key]))
   const folder = (settings.folderTemplate || '%site').split(/[\\/]/).map(part => clean(format(part)))
@@ -138,8 +138,8 @@ export class DownloadQueue {
         let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
         try {
           const response = await this.request(task.source.url, requestSignal, task.source.referer, task.source.site)
-          if (!response.ok || !/^image\/(jpeg|png|gif|webp|avif)(;|$)/i.test(response.headers.get('content-type') || '')) {
-            await response.body?.cancel(); throw new Error(`无效图片响应 (${response.status})`)
+          if (!response.ok || !/^(image\/(jpeg|png|gif|webp|avif)|video\/(mp4|webm))(;|$)/i.test(response.headers.get('content-type') || '')) {
+            await response.body?.cancel(); throw new Error(`无效媒体响应 (${response.status})`)
           }
           reader = response.body?.getReader(); if (!reader) throw new Error('响应为空')
           file = await open(temp, 'wx')

@@ -48,6 +48,17 @@ test('清除成功并重试失败，同时更新系统任务栏进度语义', as
   assert.deepEqual(taskbarProgress([]),{value:-1,mode:'none'})
 })
 
+test('下载队列接受 Gelbooru MP4/WebM，仍拒绝非媒体响应', async t => {
+  const root=await mkdtemp(join(tmpdir(),'moe-video-'));t.after(()=>rm(root,{recursive:true,force:true}))
+  const bytes=Buffer.from('verified video bytes')
+  const queue=new DownloadQueue({...downloadDefaults(root),folderTemplate:'%site',fileTemplate:'%id'},async url=>url.endsWith('.mp4')?new Response(bytes,{headers:{'content-type':'video/mp4','content-length':String(bytes.length)}}):url.endsWith('.webm')?new Response(bytes,{headers:{'content-type':'video/webm'}}):new Response('<html>blocked</html>',{headers:{'content-type':'text/html'}}),()=>{})
+  const tasks=queue.add([source(20,{site:'gelbooru',url:'https://video-cdn4.gelbooru.com/20.mp4'}),source(21,{site:'gelbooru',url:'https://video-cdn4.gelbooru.com/21.webm'}),source(22,{site:'gelbooru',url:'https://gelbooru.com/22.mp4?bad=1'} )])
+  await wait(()=>tasks.every(task=>['success','failed'].includes(task.status)))
+  assert.deepEqual(tasks.map(task=>task.status),['success','success','failed'])
+  assert.deepEqual(await readFile(tasks[0].path),bytes);assert.deepEqual(await readFile(tasks[1].path),bytes)
+  assert.match(tasks[2].text,/无效媒体响应/)
+})
+
 test('断流、停止/重试和删除不留下半成品；组图失败如实汇总', async t => {
   const root=await mkdtemp(join(tmpdir(),'moe-cancel-'));t.after(()=>rm(root,{recursive:true,force:true}))
   const settings={...downloadDefaults(root),folderTemplate:'%site',fileTemplate:'%id',concurrency:1}
