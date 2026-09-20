@@ -5,8 +5,9 @@ import { dirname, join, resolve } from 'node:path'
 import { _electron as electron } from 'playwright'
 
 const site = process.env.MOE_ONLINE_SITE || 'konachan-g'
-if (!['konachan-g', 'safebooru', 'yande'].includes(site)) throw new Error('MOE_ONLINE_SITE 仅支持 konachan-g、safebooru 或 yande')
-const keyword = site === 'yande' ? 'landscape -seifuku -swimsuits -bikini -skirt_lift -pantsu' : 'landscape'
+if (!['konachan-g', 'safebooru', 'yande', 'danbooru'].includes(site)) throw new Error('MOE_ONLINE_SITE 仅支持 konachan-g、safebooru、yande 或 danbooru')
+const keyword = site === 'yande' ? 'landscape -seifuku -swimsuits -bikini -skirt_lift -pantsu' : site === 'danbooru' ? 'landscape no_humans' : 'landscape'
+const artifactPrefix = site === 'konachan-g' || site === 'safebooru' ? 'browser' : site
 // Opt-in: real network check. Default tests use local responses.
 const profile = await mkdtemp(join(tmpdir(), 'moeloader-online-'))
 await writeFile(join(profile, 'downloads.json'), JSON.stringify({ directory: join(profile, 'images'), concurrency: 3, fileTemplate: '%site %id %title', folderTemplate: '%site', autoRename: false, tagCount: 0, firstOnly: false, firstCount: 1 }))
@@ -19,17 +20,17 @@ try {
   app = await electron.launch({ args: ['.', `--user-data-dir=${profile}`], env })
   await app.evaluate(({ session }, site) => { globalThis.onlineRequests = []; session.fromPartition(`persist:moe-site-${site}`).webRequest.onBeforeRequest((details, callback) => { globalThis.onlineRequests.push(details.url); callback({}) }) }, site)
   const page = await app.firstWindow(); await page.waitForLoadState('load')
-  if (site === 'safebooru' || site === 'yande') { await page.getByRole('combobox',{name:'站点',exact:true}).click(); await page.getByRole('option',{name:site === 'yande' ? 'Yande' : 'Safebooru',exact:true}).click() }
+  if (site !== 'konachan-g') { await page.getByRole('combobox',{name:'站点',exact:true}).click(); await page.getByRole('option',{name:{safebooru:'Safebooru',yande:'Yande',danbooru:'Danbooru'}[site],exact:true}).click() }
   await page.locator('#keyword').fill(keyword); await page.locator('#count').fill('10'); await page.locator('#count').press('Tab'); await page.locator('#search').click()
   await page.waitForFunction(() => document.querySelector('#search span').textContent === '获取', {}, { timeout: 45000 })
   assert.equal(await page.locator('.picture').count(), 10, await page.locator('#status').textContent())
   await page.locator('.picture.loaded').nth(9).waitFor({ timeout: 45000 })
-  await page.screenshot({ path: site === 'yande' ? 'artifacts/yande-online.png' : 'artifacts/browser-online.png', animations: 'disabled' })
+  await page.screenshot({ path: `artifacts/${artifactPrefix}-online.png`, animations: 'disabled' })
   const opened = app.waitForEvent('window')
   await page.locator('.picture').first().hover(); await page.locator('.picture').first().getByTitle('预览图').click()
   const preview = await opened
   await preview.waitForFunction(() => document.querySelector('#large-image')?.naturalWidth > 0 && document.querySelector('#preview-loading').hidden, {}, { timeout: 45000 })
-  await preview.screenshot({ path: site === 'yande' ? 'artifacts/yande-online-preview.png' : 'artifacts/browser-online-preview.png', animations: 'disabled' })
+  await preview.screenshot({ path: `artifacts/${artifactPrefix}-online-preview.png`, animations: 'disabled' })
   await preview.close()
   await page.locator('.picture').first().hover(); await page.locator('.picture').first().getByTitle('下载', { exact: true }).click()
   await page.waitForFunction(() => ['success', 'failed', 'skip'].includes(document.querySelector('.download-row')?.dataset.status), {}, { timeout: 90000 })
@@ -39,7 +40,7 @@ try {
   assert.equal(savedFile.size, task.loaded); assert.ok(savedFile.size > 0)
   const bytes = await readFile(task.path)
   assert.ok(bytes.subarray(0, 2).equals(Buffer.from([0xff, 0xd8])) || bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])) || bytes.subarray(0,3).toString() === 'GIF' || bytes.subarray(8,12).toString() === 'WEBP', '下载文件必须为真实图片')
-  await page.screenshot({ path: site === 'yande' ? 'artifacts/yande-download-online.png' : 'artifacts/download-online.png', animations: 'disabled' })
+  await page.screenshot({ path: `artifacts/${artifactPrefix}-download-online.png`, animations: 'disabled' })
   const result = { proxyMode, downloadedBytes: savedFile.size, download: true, site, keyword, items: 10, loaded: 10, preview: true, time: new Date().toISOString() }
   await writeFile(`artifacts/${site}-online-result.json`, JSON.stringify(result, null, 2)); console.log(result)
 } catch (error) {

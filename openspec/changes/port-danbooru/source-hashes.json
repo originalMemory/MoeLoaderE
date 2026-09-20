@@ -1,0 +1,8 @@
+{
+  "head": "f1fd37c2a8f4c7a5048cdd63d1cadd0050234ea9",
+  "files": {
+    "MoeLoaderP.Core/Sites/DanbooruSite.cs": "fc6eb531420739a9b37c281db23a985f4b40818aa7f2d70836d23444d0662744",
+    "MoeLoaderP.Core/Sites/BooruSite.cs": "00a8dda30bc96f7062fc7817bacd8bfb0830cd40bad83efc9dcbc800769f11f3",
+    "MoeLoaderP.Wpf/Assets/SiteIcon/danbooru.ico": "04b391e90205b8807840d64ae10d296fdb6ea3b4c135a45c31364d7b573b1fb0"
+  }
+}

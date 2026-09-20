@@ -19,3 +19,4 @@ MoeLoaderE 的站点解析、搜索分页、已读记录、下载队列/命名�
 
 - yande.ico 来自 MoeLoaderP Assets/SiteIcon/yande.ico；Yande 查询与字段按 YandeSite.cs/BooruSite.cs 转写，基线见 openspec/changes/port-yande/source-hashes.json。
 - gelbooru.ico 来自 MoeLoaderP Assets/SiteIcon/gelbooru.ico；Gelbooru 查询、字段与详情分类按 GelbooruSite.cs/BooruSite.cs 转写，基线见 openspec/changes/port-gelbooru/source-hashes.json。
+- danbooru.ico 来自 MoeLoaderP Assets/SiteIcon/danbooru.ico；Danbooru 查询与字段按 DanbooruSite.cs/BooruSite.cs 转写，基线见 openspec/changes/port-danbooru/source-hashes.json。

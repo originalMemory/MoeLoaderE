@@ -162,7 +162,7 @@ export class SiteNetwork {
         if (site === 'pixiv' && !this.verified.has(site)) throw new Error('需要重新登录Pixiv站点才能开始搜索')
         requestRevision = this.authRevision.get(site) ?? 0
         // Preserve the adapter's explicit full Referer across CDN origins; Chromium otherwise blocks it.
-        return this.sessions[site].fetch(url, { signal, redirect: 'manual', credentials: 'include', referrerPolicy: 'unsafe-url', headers: { Referer: referer || sites[site].home } })
+        return this.sessions[site].fetch(url, { signal, redirect: 'manual', credentials: 'include', referrerPolicy: 'unsafe-url', headers: { Referer: referer || sites[site].home, ...(sites[site].userAgent ? { 'User-Agent': sites[site].userAgent } : {}) } })
       }
       let response: Response
       try { response = await request() } catch (error) { signal.throwIfAborted(); if (!retry) throw error; response = await request() }

@@ -1,6 +1,7 @@
 import type { NetworkSettings, SiteId, ProxyMode, SiteDefinition } from './types'
 
 export const sites: Record<string, SiteDefinition> = {
+  danbooru: { name: 'Danbooru', home: 'https://danbooru.donmai.us', login: 'https://danbooru.donmai.us/login', cookieAuthKey: '_danbooru2_session', userAgent: 'gdl/1.24.5', hosts: ['danbooru.donmai.us', 'cdn.donmai.us'], hostSuffixes: ['donmai.us'] },
   gelbooru: { name: 'Gelbooru', home: 'https://gelbooru.com', login: 'https://gelbooru.com/index.php?page=account&s=login&code=00', cookieAuthKey: 'user_id', hosts: ['gelbooru.com'], hostSuffixes: ['gelbooru.com'] },
   yande: { name: 'Yande', home: 'https://yande.re', login: 'https://yande.re/user/login', cookieAuthKey: 'user_id', hosts: ['yande.re', 'files.yande.re', 'assets.yande.re'] },
   safebooru: { name: 'Safebooru', home: 'https://safebooru.org', login: '', hosts: ['safebooru.org', 'www.safebooru.org'] },

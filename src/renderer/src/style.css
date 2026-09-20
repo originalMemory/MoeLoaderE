@@ -303,3 +303,5 @@ body[data-site=yande] [data-select=site] .select-toggle { background-image:url('
 body[data-site=yande] #search-form { width:442px; }
 body[data-site=gelbooru] #search-form { width:442px; }
 body[data-site=gelbooru] [data-select=site] .select-toggle { background-image:url('/assets/gelbooru.ico'),linear-gradient(#f1f1f1,#fff); }
+body[data-site=danbooru] #search-form { width:442px; }
+body[data-site=danbooru] [data-select=site] .select-toggle { background-image:url('/assets/danbooru.ico'),linear-gradient(#f1f1f1,#fff); }
